@@ -1,0 +1,1 @@
+iniciar ambiente virtual: .venv\Scripts\activate
