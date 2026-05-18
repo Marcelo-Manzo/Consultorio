@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_paciente, listar_pacientes
+from database.models import criar_paciente, listar_pacientes, buscar_paciente_por_nome
 
 def mostrar(parent):
     titulo = ctk.CTkLabel(parent, text="Pacientes", font=("Arial", 24, "bold"))
@@ -51,9 +51,21 @@ def mostrar(parent):
         cpf_entry.delete(0, "end")
         telefone_entry.delete(0, "end")
         atualizar_lista()
-    def buscar():
-        nome = nome_entry.get()
-        
+
+    # busca_label = ctk.CTkLabel(parent, text="Paciente Encontrado:", font=("Arial", 16))
+    # busca_label.pack(pady = 10)
+
+    # busca_frame = ctk.CTkScrollableFrame(parent, width=600, height=200)
+    # busca_frame.pack(pady=10)
+
+    # def buscar():
+    #     nome = nome_entry.get()
+    #     paciente_encontrado = buscar_paciente_por_nome(nome)
+    #     if len(paciente_encontrado) != 0:
+    #         texto = f"Nome: {paciente_encontrado.nome} | Telefone: {paciente_encontrado.telefone} | CPF: {paciente_encontrado.cpf}"
+    #         ctk.CTkLabel(busca_frame, text = texto).pack(anchor="w", padx=10, pady=5)
+    #     else:
+    #         busca_frame.configure(text="❌ Paciente não encontrado")
         
     
     ctk.CTkButton(
@@ -61,11 +73,11 @@ def mostrar(parent):
         text="Cadastrar",
         command=cadastrar
     ).pack(pady=10)
-    ctk.CTkButton(
-        parent,
-        text="buscar",
-        command=buscar
-    ).pack(pady=10)
+    # ctk.CTkButton(
+    #     parent,
+    #     text="buscar",
+    #     command=buscar
+    # ).pack(pady=10)
 
     
     atualizar_lista()

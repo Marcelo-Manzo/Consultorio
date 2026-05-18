@@ -70,3 +70,11 @@ def marcar_pagamento(consulta_id, pago):
     query = text("UPDATE Consultas SET pago = :pago WHERE id = :id")
     db.execute(query, {"pago": pago, "id": consulta_id})
     db.commit()
+
+# ==================== CONSULTAS ====================
+
+def listar_tratamentos():
+    db = get_db()
+    query = text("SELECT * FROM Tratamentos ORDER BY nome")
+    result = db.execute(query)
+    return result.fetchall()
