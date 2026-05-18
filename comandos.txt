@@ -1,1 +1,3 @@
 iniciar ambiente virtual: .venv\Scripts\activate
+pip install customtkinter
+iniciar: python app.py
