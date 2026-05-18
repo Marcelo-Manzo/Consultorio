@@ -10,7 +10,7 @@ class App(ctk.CTk):
         super().__init__()
         # __init__ é o construtor — roda quando você cria App().
         
-        self.title("Consultório Odontológico")
+        self.title("Consultório")
         self.geometry("900x600")
         
         # Frame lateral com botões de navegação
