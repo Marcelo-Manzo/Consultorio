@@ -10,9 +10,11 @@ def mostrar(parent):
     nome_busca_entry = ctk.CTkEntry(parent, width=250, placeholder_text="Nome do paciente")
     nome_busca_entry.pack(pady=5)
     
+    #resposta
     resultado_label = ctk.CTkLabel(parent, text="", font=("Arial", 12))
     resultado_label.pack(pady=5)
 
+    #declaração do paciente
     paciente_selecionado = {"id": None, "nome": ""}
     
     def buscar_paciente():
@@ -27,6 +29,7 @@ def mostrar(parent):
             paciente_selecionado["id"] = p.id
             paciente_selecionado["nome"] = p.nome
             resultado_label.configure(text=f"✓ {p.nome} || CPF: {p.cpf}")
+            atualizar_lista()
         else:
             resultado_label.configure(text=f"⚠ {len(pacientes)} pacientes encontrados. Seja mais específico.")
     
@@ -68,17 +71,50 @@ def mostrar(parent):
         
         tratamento = tratamento_dropdown.get()
         data_str = data_entry.get()
-        data = datetime.strptime(data_str, "%d/%m/%Y")
+        
+        try:
+            data = datetime.strptime(data_str, "%d/%m/%Y")
+        except ValueError:
+            resultado_label.configure(text="❌ Data inválida. Use DD/MM/AAAA")
+            return
+        
         valor = valor_entry.get()
         metodo = metodo_dropdown.get()
-
-        criar_consulta(paciente_selecionado["id"],tratamento, data, valor, metodo)
-
-        paciente_selecionado.delete(0, "end")
-        tratamento_dropdown.delete(0, "end")
-        valor_entry.delete(0, "end")
-        metodo_dropdown.delete(0, "end")
         
-        resultado_label.configure(text=f"✓ Consulta agendada para {paciente_selecionado['nome']}")
-    
+        try:
+            criar_consulta(paciente_selecionado["id"], tratamento, data, valor, metodo)
+            atualizar_lista()
+            # Limpa os campos
+            paciente_selecionado["id"] = None
+            paciente_selecionado["nome"] = ""
+            nome_busca_entry.delete(0, "end")
+            tratamento_dropdown.set("Selecione o tratamento")
+            data_entry.delete(0, "end")
+            valor_entry.delete(0, "end")
+            metodo_dropdown.set("Método de pagamento")
+            #resposta
+            resultado_label.configure(text=f"✓ Consulta agendada com sucesso!")
+        except Exception as e:
+            resultado_label.configure(text=f"❌ Erro ao agendar: {str(e)}")
+
     ctk.CTkButton(parent, text="Agendar Consulta", command=agendar).pack(pady=20)
+    
+    #lista consultas do paciente
+    lista_label = ctk.CTkLabel(parent, text=f"Consultas Paciente {paciente_selecionado['nome']}", font=("Arial", 16))
+    lista_label.pack(pady=(30, 10))
+    
+    lista_frame = ctk.CTkScrollableFrame(parent, width=600, height=200)
+    lista_frame.pack(pady=10)
+
+    def atualizar_lista():
+        # 1. Limpa todas as labels antigas antes de desenhar as novas
+        for componente in lista_frame.winfo_children():
+            componente.destroy()
+            
+        # 2. Busca e renderiza a lista atualizada
+        consultas = listar_consultas_paciente(paciente_selecionado["id"])
+        for c in consultas:
+            texto = f"tratamento:{c.tratamento} || Dia:{c.data} || valor: {c.valor}"
+            ctk.CTkLabel(lista_frame, text=texto).pack(anchor="w", padx=10, pady=5)
+
+    atualizar_lista()

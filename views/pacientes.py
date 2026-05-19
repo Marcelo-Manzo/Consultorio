@@ -42,15 +42,29 @@ def mostrar(parent):
             texto = f"Nome: {p.nome} | Telefone: {p.telefone} | CPF: {p.cpf}"
             ctk.CTkLabel(lista_frame, text=texto).pack(anchor="w", padx=10, pady=5)
     
+    def validar():
+        if nome_entry.get() == "" or cpf_entry.get() == "" or telefone_entry.get() == "":
+            return False
+        else:
+            return True
+    
     def cadastrar():
-        nome = nome_entry.get()
-        cpf = cpf_entry.get()
-        telefone = telefone_entry.get()
-        criar_paciente(nome, telefone, cpf)  # ordem correta
-        nome_entry.delete(0, "end")
-        cpf_entry.delete(0, "end")
-        telefone_entry.delete(0, "end")
-        atualizar_lista()
+        if validar():
+            nome = nome_entry.get()
+            cpf = cpf_entry.get()
+            telefone = telefone_entry.get()
+            criar_paciente(nome, telefone, cpf)  # ordem correta
+            nome_entry.delete(0, "end")
+            cpf_entry.delete(0, "end")
+            telefone_entry.delete(0, "end")
+            atualizar_lista()
+        else:
+            for componente in lista_frame.winfo_children():
+                componente.destroy()
+            print("dados invalidos")
+            texto = "Dados invalidos"
+            ctk.CTkLabel(lista_frame, text=texto).pack(anchor="w", padx=10, pady=5)
+        
 
     # busca_label = ctk.CTkLabel(parent, text="Paciente Encontrado:", font=("Arial", 16))
     # busca_label.pack(pady = 10)
@@ -73,6 +87,7 @@ def mostrar(parent):
         text="Cadastrar",
         command=cadastrar
     ).pack(pady=10)
+
     # ctk.CTkButton(
     #     parent,
     #     text="buscar",
