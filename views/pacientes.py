@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from database.models import criar_paciente, listar_pacientes, buscar_paciente_por_nome
 
+# parent: É o local (como a janela principal ou uma aba) onde as telas serao desenhadas.
 def mostrar(parent):
     titulo = ctk.CTkLabel(parent, text="Pacientes", font=("Arial", 24, "bold"))
     titulo.pack(pady=20)

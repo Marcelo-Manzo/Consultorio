@@ -50,7 +50,11 @@ def mostrar(parent):
     # Data
     data_entry = ctk.CTkEntry(parent, width=250, placeholder_text="Data (DD/MM/AAAA)")
     data_entry.pack(pady=5)
-    
+
+    #horario
+    horario_entry = ctk.CTkEntry(parent, width=250, placeholder_text="Horario (HH:MM)")
+    horario_entry.pack(pady=5)
+
     # Valor
     valor_entry = ctk.CTkEntry(parent, width=250, placeholder_text="Valor (ex: 150.00)")
     valor_entry.pack(pady=5)
@@ -71,18 +75,23 @@ def mostrar(parent):
         
         tratamento = tratamento_dropdown.get()
         data_str = data_entry.get()
-        
+        horario_str = horario_entry.get()
         try:
             data = datetime.strptime(data_str, "%d/%m/%Y")
         except ValueError:
             resultado_label.configure(text="❌ Data inválida. Use DD/MM/AAAA")
+            return
+        try:
+            horario = datetime.strptime(horario_str, "%H:%M").time()
+        except ValueError:
+            resultado_label.configure(text="❌ Horario Invalido. Use HH:MM")
             return
         
         valor = valor_entry.get()
         metodo = metodo_dropdown.get()
         
         try:
-            criar_consulta(paciente_selecionado["id"], tratamento, data, valor, metodo)
+            criar_consulta(paciente_selecionado["id"], tratamento, data,horario, valor, metodo)
             atualizar_lista()
             # Limpa os campos
             paciente_selecionado["id"] = None
@@ -90,6 +99,7 @@ def mostrar(parent):
             nome_busca_entry.delete(0, "end")
             tratamento_dropdown.set("Selecione o tratamento")
             data_entry.delete(0, "end")
+            horario_entry.delete(0, "end")
             valor_entry.delete(0, "end")
             metodo_dropdown.set("Método de pagamento")
             #resposta
@@ -114,7 +124,7 @@ def mostrar(parent):
         # 2. Busca e renderiza a lista atualizada
         consultas = listar_consultas_paciente(paciente_selecionado["id"])
         for c in consultas:
-            texto = f"tratamento:{c.tratamento} || Dia:{c.data} || valor: {c.valor}"
+            texto = f"tratamento:{c.tratamento} || Dia:{c.data} || Horario: {c.horario} valor: {c.valor}"
             ctk.CTkLabel(lista_frame, text=texto).pack(anchor="w", padx=10, pady=5)
 
     atualizar_lista()

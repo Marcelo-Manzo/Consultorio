@@ -24,22 +24,40 @@ def buscar_paciente_por_nome(nome):
     result = db.execute(query, {"nome": f"%{nome}%"})
     return result.fetchall()
 
+def buscar_paciente_por_id(paciente_id): 
+    db = get_db()
+    query = text("SELECT * FROM Pacientes WHERE id = :id")
+    result = db.execute(query, {"id": paciente_id})
+    return result.fetchall()
+
 # ==================== CONSULTAS ====================
 
-def criar_consulta(paciente_id, tratamento, data, valor, metodo_pagamento):
+def criar_consulta(paciente_id, tratamento, data,horaio, valor, metodo_pagamento):
     db = get_db()
     query = text("""
-        INSERT INTO Consultas (paciente_id, tratamento, data, valor, metodo_pagamento)
-        VALUES (:paciente_id, :tratamento, :data, :valor, :metodo_pagamento)
+        INSERT INTO Consultas (paciente_id, tratamento, data, horario, valor, metodo_pagamento)
+        VALUES (:paciente_id, :tratamento, :data, :horario, :valor, :metodo_pagamento)
     """)
     db.execute(query, {
         "paciente_id": paciente_id,
         "tratamento": tratamento,
         "data": data,
+        "horario": horaio,
         "valor": valor,
         "metodo_pagamento": metodo_pagamento
     })
     db.commit()
+
+def listar_consultas_data(data):
+    db = get_db()
+    # Convertemos o campo 'data' do SQL Server para o formato YYYY-MM-DD (código 23) antes de comparar
+    query = text("""
+        SELECT * FROM Consultas 
+        WHERE CONVERT(VARCHAR(10), data, 23) = :data 
+        ORDER BY data DESC
+    """)
+    result = db.execute(query, {"data": data})
+    return result.fetchall()
 
 def listar_consultas_paciente(paciente_id):
     db = get_db()
@@ -71,10 +89,10 @@ def marcar_pagamento(consulta_id, pago):
     db.execute(query, {"pago": pago, "id": consulta_id})
     db.commit()
 
-# ==================== CONSULTAS ====================
-
 def listar_tratamentos():
     db = get_db()
     query = text("SELECT * FROM Tratamentos ORDER BY nome")
     result = db.execute(query)
     return result.fetchall()
+
+# ==================== Agenda ====================
