@@ -32,17 +32,16 @@ def buscar_paciente_por_id(paciente_id):
 
 # ==================== CONSULTAS ====================
 
-def criar_consulta(paciente_id, tratamento, data,horaio, valor, metodo_pagamento):
+def criar_consulta(paciente_id, tratamento, data_e_horario, valor, metodo_pagamento):
     db = get_db()
     query = text("""
-        INSERT INTO Consultas (paciente_id, tratamento, data, horario, valor, metodo_pagamento)
-        VALUES (:paciente_id, :tratamento, :data, :horario, :valor, :metodo_pagamento)
+        INSERT INTO Consultas (paciente_id, tratamento, data, valor, metodo_pagamento)
+        VALUES (:paciente_id, :tratamento, :data, :valor, :metodo_pagamento)
     """)
     db.execute(query, {
         "paciente_id": paciente_id,
         "tratamento": tratamento,
-        "data": data,
-        "horario": horaio,
+        "data": data_e_horario, # Envia o objeto datetime completo (dia + hora) para a coluna 'data'
         "valor": valor,
         "metodo_pagamento": metodo_pagamento
     })

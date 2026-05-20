@@ -86,12 +86,14 @@ def mostrar(parent):
         except ValueError:
             resultado_label.configure(text="❌ Horario Invalido. Use HH:MM")
             return
+
+        data_e_horario = datetime.combine(data.date(), horario)
         
         valor = valor_entry.get()
         metodo = metodo_dropdown.get()
         
         try:
-            criar_consulta(paciente_selecionado["id"], tratamento, data,horario, valor, metodo)
+            criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario, valor, metodo)
             atualizar_lista()
             # Limpa os campos
             paciente_selecionado["id"] = None
@@ -124,7 +126,8 @@ def mostrar(parent):
         # 2. Busca e renderiza a lista atualizada
         consultas = listar_consultas_paciente(paciente_selecionado["id"])
         for c in consultas:
-            texto = f"tratamento:{c.tratamento} || Dia:{c.data} || Horario: {c.horario} valor: {c.valor}"
+            # .strftime("%H:%M") extrai apenas as horas e minutos da sua data unificada
+            texto = f"tratamento:{c.tratamento} || Dia:{c.data.strftime('%d/%m/%Y')} || Horario: {c.data.strftime('%H:%M')} valor: {c.valor}"
             ctk.CTkLabel(lista_frame, text=texto).pack(anchor="w", padx=10, pady=5)
 
     atualizar_lista()

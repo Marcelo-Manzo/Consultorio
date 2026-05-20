@@ -13,8 +13,7 @@ def mostrar(parent):
 
     # Configurações de expansão para habilitar o grid responsivo
     frame_calendario.rowconfigure(0, weight=1)
-    parent.columnconfigure(0, weight=1)
-
+    #rowConfigure Faz exatamente a mesma coisa que o columnconfigure, mas olhando para a Linha 0. Diz para a linha do calendário esticar e ocupar a tela inteira de cima a baixo na vertical.
     # Descobre a segunda-feira da semana atual como ponto de partida
     hoje = datetime.now()
     inicio_semana = hoje - timedelta(days=hoje.weekday())
@@ -23,8 +22,11 @@ def mostrar(parent):
 
     # Loop para renderizar os 5 dias úteis lado a lado
     for i in range(5):
+
         # Define larguras iguais para todas as colunas
         frame_calendario.columnconfigure(i, weight=1, uniform="col")
+        # columnconfigure(i, ...): Avisa ao Python que estamos configurando as propriedades da coluna número i.weight=1: É a propriedade mais importante do grid. Ela funciona como um elástico. Se a janela aumentar de tamanho, as colunas que têm weight=1 vão esticar para preencher o espaço. Se você esquecer o weight, a coluna fica travada com tamanho zero ou esmagada.uniform="col": Força todas as colunas que tiverem esse mesmo nome (no caso, "col") a terem rigorosamente a mesma largura. Isso impede que o container de "Segunda" fique maior do que o de "Terça" só porque tem mais texto escrito nele.
+
 
         # Calcula a data exata da coluna e monta o cabeçalho
         data_dia = inicio_semana + timedelta(days=i)
@@ -48,11 +50,14 @@ def mostrar(parent):
         # Busca apenas as consultas correspondentes a essa data específica
         consultas = listar_consultas_data(data_banco)
         for consulta in consultas:
-            p = buscar_paciente_por_id(consulta.paciente_id)
-            
+            # Se p for uma lista vinda do fetchall(), pegamos o primeiro item da lista usando [0]
+            p_lista = buscar_paciente_por_id(consulta.paciente_id)
+
             # Monta os dados estruturados do paciente na linha de exibição
-            texto_linha = f"{consulta.horario} - {p.nome}\n- {consulta.tratamento}\n\n"
-            lista_consultas.insert("end", texto_linha)
+            if p_lista: # Garante que o banco encontrou o paciente para não quebrar
+                p = p_lista[0] 
+                texto_linha = f"{consulta.data.strftime('%H:%M')} - {p.nome} - {consulta.tratamento}\n\n"
+                lista_consultas.insert("end", texto_linha)
                 
         # Trava a edição do campo de texto (somente leitura para exibição)
         lista_consultas.configure(state="disabled")
