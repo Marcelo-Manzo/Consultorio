@@ -78,7 +78,6 @@ def mostrar(parent):
         # Busca apenas as consultas correspondentes a essa data específica
         consultas = listar_consultas_data(data_banco)
         for consulta in consultas:
-            # Se p for uma lista vinda do fetchall(), pegamos o primeiro item da lista usando [0]
             p_lista = buscar_paciente_por_id(consulta.paciente_id)
 
             if p_lista: # Garante que o banco encontrou o paciente para não quebrar
