@@ -31,3 +31,4 @@ vc pega as coisas assim:    for consulta in consultas:
 
 adicionar em paciente: endereço, telefone de emerg. medicamento (alergia etc.) 
 adicionar em calendario: botao de voltar na semana atual. Botao de editar consulta, e ao clicar na consulta ver melhor.
+consulta: fzr dropdown com horarios livres para consulta
