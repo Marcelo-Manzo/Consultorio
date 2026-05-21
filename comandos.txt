@@ -1,3 +1,29 @@
 iniciar ambiente virtual: .venv\Scripts\activate
 pip install customtkinter
 iniciar: python app.py
+
+
+________________________________________________
+
+anotações
+
+# Criando um dicionário com Chave: Valor
+consulta = {
+    "id": 1,
+    "tratamento": "canal",
+    "valor": 400.00
+}
+
+# Para acessar o ID desse dicionário, você usaria os colchetes:
+print(consulta["id"])  # Vai imprimir: 1
+
+
+no slqAlchemy ele retorna isso:
+# É isso o que a variável 'consultas' recebe:
+consultas = [
+    ObjetoConsulta(id=1, paciente_id=23, tratamento="Limpeza", data="2026-05-18 09:00:00", valor=150.0),
+    ObjetoConsulta(id=2, paciente_id=23, tratamento="Canal", data="2026-05-18 14:30:00", valor=400.0)
+]
+
+vc pega as coisas assim:    for consulta in consultas:
+                                id = consulta.id                       mt legal
