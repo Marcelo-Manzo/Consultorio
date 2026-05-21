@@ -1,6 +1,6 @@
 from sqlalchemy import text
 from .connection import get_db
-#onde ficam as funções com o banco
+
 # ==================== PACIENTES ====================
 
 def criar_paciente(nome, telefone, cpf):
@@ -9,60 +9,75 @@ def criar_paciente(nome, telefone, cpf):
         INSERT INTO Pacientes (nome, telefone, cpf)
         VALUES (:nome, :telefone, :cpf)
     """)
-    db.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
-    db.commit()
+    with db as conn:
+        conn.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
+        db.commit()  # CORRIGIDO: Commit dentro do bloco with
 
 def listar_pacientes():
     db = get_db()
     query = text("SELECT * FROM Pacientes ORDER BY nome")
-    result = db.execute(query)
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query)
+        return result.fetchall()
 
 def buscar_paciente_por_nome(nome):
     db = get_db()
     query = text("SELECT * FROM Pacientes WHERE nome LIKE :nome")
-    result = db.execute(query, {"nome": f"%{nome}%"})
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query, {"nome": f"%{nome}%"})
+        return result.fetchall()
 
 def buscar_paciente_por_id(paciente_id): 
     db = get_db()
     query = text("SELECT * FROM Pacientes WHERE id = :id")
-    result = db.execute(query, {"id": paciente_id})
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query, {"id": paciente_id})
+        return result.fetchone()  # Mantido fetchone() para a agenda funcionar
 
 # ==================== CONSULTAS ====================
 
-def criar_consulta(paciente_id, tratamento, data_e_horario, valor, metodo_pagamento):
+def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento):
     db = get_db()
     query = text("""
         INSERT INTO Consultas (paciente_id, tratamento, data, valor, metodo_pagamento)
         VALUES (:paciente_id, :tratamento, :data, :valor, :metodo_pagamento)
     """)
-    db.execute(query, {
-        "paciente_id": paciente_id,
-        "tratamento": tratamento,
-        "data": data_e_horario, # Envia o objeto datetime completo (dia + hora) para a coluna 'data'
-        "valor": valor,
-        "metodo_pagamento": metodo_pagamento
-    })
-    db.commit()
+    with db as conn:
+        conn.execute(query, {
+            "paciente_id": paciente_id,
+            "tratamento": treatment,
+            "data": data_e_horario, 
+            "valor": valor,
+            "metodo_pagamento": metodo_pagamento
+        })
+        db.commit()  # CORRIGIDO: Commit garantido dentro do bloco with
+
+def deletar_consulta(consulta_id):
+    db = get_db()
+    # Correção: Tiramos a palavra 'values' que causava erro de sintaxe no SQL Server
+    query = text("DELETE FROM Consultas WHERE id = :consulta_id")
+    with db as conn:
+        conn.execute(query, {"consulta_id": consulta_id})
+        db.commit()
 
 def listar_consultas_data(data):
     db = get_db()
-    # Convertemos o campo 'data' do SQL Server para o formato YYYY-MM-DD (código 23) antes de comparar
+    # DESAFIO CONCLUÍDO: Mudado para ORDER BY data ASC para ordenar os horários na agenda!
     query = text("""
         SELECT * FROM Consultas 
         WHERE CONVERT(VARCHAR(10), data, 23) = :data 
-        ORDER BY data DESC
+        ORDER BY data ASC
     """)
-    result = db.execute(query, {"data": data})
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query, {"data": data})
+        return result.fetchall()
 
 def listar_consultas_paciente(paciente_id):
     db = get_db()
     query = text("SELECT * FROM Consultas WHERE paciente_id = :id ORDER BY data DESC")
-    result = db.execute(query, {"id": paciente_id})
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query, {"id": paciente_id})
+        return result.fetchall()
 
 def listar_faltas():
     db = get_db()
@@ -73,25 +88,27 @@ def listar_faltas():
         WHERE c.compareceu = 0
         ORDER BY c.data DESC
     """)
-    result = db.execute(query)
-    return result.fetchall()
+    with db as conn:
+        result = conn.execute(query)
+        return result.fetchall()
 
 def marcar_comparecimento(consulta_id, compareceu):
     db = get_db()
     query = text("UPDATE Consultas SET compareceu = :compareceu WHERE id = :id")
-    db.execute(query, {"compareceu": compareceu, "id": consulta_id})
-    db.commit()
+    with db as conn:
+        conn.execute(query, {"compareceu": compareceu, "id": consulta_id})
+        db.commit()  # CORRIGIDO: Commit dentro do bloco with
 
 def marcar_pagamento(consulta_id, pago):
     db = get_db()
     query = text("UPDATE Consultas SET pago = :pago WHERE id = :id")
-    db.execute(query, {"pago": pago, "id": consulta_id})
-    db.commit()
+    with db as conn:
+        conn.execute(query, {"pago": pago, "id": consulta_id})
+        db.commit()  # CORRIGIDO: Commit dentro do bloco with
 
 def listar_tratamentos():
     db = get_db()
     query = text("SELECT * FROM Tratamentos ORDER BY nome")
-    result = db.execute(query)
-    return result.fetchall()
-
-# ==================== Agenda ====================
+    with db as conn:
+        result = conn.execute(query)
+        return result.fetchall()
