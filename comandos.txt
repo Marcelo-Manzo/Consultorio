@@ -27,3 +27,7 @@ consultas = [
 
 vc pega as coisas assim:    for consulta in consultas:
                                 id = consulta.id                       mt legal
+
+
+adicionar em paciente: endereço, telefone de emerg. medicamento (alergia etc.) 
+adicionar em calendario: botao de voltar na semana atual. Botao de editar consulta, e ao clicar na consulta ver melhor.
