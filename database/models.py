@@ -60,6 +60,27 @@ def deletar_consulta(consulta_id):
         conn.execute(query, {"consulta_id": consulta_id})
         db.commit()
 
+def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):
+    db = get_db()
+    # 2. Escreva o comando de atualização aqui dentro
+    query = text("""
+        UPDATE Consultas
+        SET tratamento = :tratamento,
+            data = :data,
+            valor = :valor,
+            metodo_pagamento = :metodo_pagamento
+        WHERE id = :consulta_id
+    """)
+    with db as conn:
+        conn.execute(query, {
+            "consulta_id": consulta_id, # Passa o ID da consulta para o WHERE saber qual alterar
+            "tratamento": treatment,
+            "data": data_e_horario, 
+            "valor": valor,
+            "metodo_pagamento": metodo_pagamento
+        })
+        db.commit()
+
 def listar_consultas_data(data):
     db = get_db()
     # DESAFIO CONCLUÍDO: Mudado para ORDER BY data ASC para ordenar os horários na agenda!

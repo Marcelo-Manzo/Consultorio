@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_data, buscar_paciente_por_id, deletar_consulta
+from database.models import criar_consulta, listar_consultas_data, buscar_paciente_por_id, deletar_consulta, update_consulta,listar_tratamentos
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela
@@ -20,8 +20,95 @@ def mostrar(parent):
     def retroceder_semana():
         controle_semana["deslocamento"] -= 1
         redesenhar_agenda()
+    
+    def abrir_janela_editar(consulta):
+        frame_editar_consulta = ctk.CTkToplevel(parent, fg_color="#2b2b2b")
+        frame_editar_consulta.title("Editar Consulta") # Dá um título bonito para ela
+        
+        # 1. Defina o tamanho que você quer para a janela de edição
+        largura_janela = 400
+        altura_janela = 300
 
-    # Título da tela
+        # 2. Descobre o tamanho total da tela do computador do usuário
+        largura_tela = frame_editar_consulta.winfo_screenwidth()
+        altura_tela = frame_editar_consulta.winfo_screenheight()
+
+        # 3. Faz a matemática para descobrir onde fica o centro da tela
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+
+        # 4. Aplica a geometria final no formato: LARGURAxALTURA+X+Y
+        frame_editar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+
+        # 5. Segurança: Faz a janela ficar sempre na frente e impede cliques fora dela até ser fechada
+        frame_editar_consulta.grab_set()
+
+        #====================CustomTkinter======================
+        # Tratamento dropdown
+        tratamentos_db = listar_tratamentos()
+        tratamentos_lista = [t.nome for t in tratamentos_db]
+        
+        tratamento_dropdown = ctk.CTkComboBox(
+            frame_editar_consulta,
+            values=tratamentos_lista,
+            width=250
+        )
+        tratamento_dropdown.pack(pady=5)
+        tratamento_dropdown.set("Selecione o tratamento")
+
+        data_entry = ctk.CTkEntry(frame_editar_consulta, width=250, placeholder_text="Data (DD/MM/AAAA)")
+        data_entry.pack(pady=3)
+        data_entry.insert(0, consulta.data.strftime('%d/%m/%Y')) 
+
+        horario_entry = ctk.CTkEntry(frame_editar_consulta, width=250, placeholder_text="Horário")
+        horario_entry.pack(pady=3)
+        horario_entry.insert(0, consulta.data.strftime('%H:%M'))
+
+        valor_entry = ctk.CTkEntry(frame_editar_consulta, width=250, placeholder_text="Valor (ex: 150.00)")
+        valor_entry.pack(pady=5)
+        valor_entry.insert(0, consulta.valor)
+
+        metodo_dropdown = ctk.CTkComboBox(
+        frame_editar_consulta,
+        values=["Pix", "Débito", "Crédito", "Dinheiro", "Pendente"],
+        width=250
+        )
+        metodo_dropdown.pack(pady=5)
+        metodo_dropdown.set("Método de pagamento")
+
+        resultado_editar_label = ctk.CTkLabel(frame_editar_consulta, text="", font=("Arial", 12))
+        resultado_editar_label.pack(pady=5)
+        #====================== variaveis=====================
+
+        def realizar_update():
+            # A captura dos dados (.get())
+            novo_tratamento = tratamento_dropdown.get()
+            data_str = data_entry.get()
+            horario_str = horario_entry.get()
+            novo_valor = valor_entry.get()
+            novo_metodo = metodo_dropdown.get()
+
+            # Converter as strings digitadas em objetos reais (Igual você fez na tela de agendar)
+            try:
+                data_obj = datetime.strptime(data_str, "%d/%m/%Y")
+                horario_obj = datetime.strptime(horario_str, "%H:%M").time()
+                data_e_horario_final = datetime.combine(data_obj.date(), horario_obj)
+                resultado_editar_label.configure(text="✓Consulta Atualizada")
+            except ValueError:
+                resultado_editar_label.configure(text="❌ Data ou Horário inválidos.")
+                return
+
+            # Executa a função do banco passando os novos dados
+            update_consulta(consulta.id, novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
+            # Fecha a janelinha de edição automaticamente
+            frame_editar_consulta.destroy()
+
+            # Atualiza a agenda da tela principal para mostrar os novos dados na hora!
+            redesenhar_agenda()
+
+        ctk.CTkButton(frame_editar_consulta, text="Salvar", command=realizar_update).pack(pady=20)
+
+    # Título da tela 
     titulo = ctk.CTkLabel(parent, font=("Arial", 24, "bold"))
     titulo.pack(pady=20)
 
@@ -31,6 +118,13 @@ def mostrar(parent):
 
     # Botões de navegação passados SEM parênteses no 'command'
     ctk.CTkButton(frame_botoes, text="<<", command=retroceder_semana, width=60).pack(side="left", padx=5)
+    ctk.CTkButton(
+    frame_botoes, 
+    text="🏠", 
+    # Trocamos o sinal de igual por .update() para o Python aceitar a instrução
+    command=lambda: [controle_semana.update({"deslocamento": 0}), redesenhar_agenda()], 
+    width=60
+    ).pack(side="left", padx=5)
     ctk.CTkButton(frame_botoes, text=">>", command=avanca_semana, width=60).pack(side="left", padx=5)
 
     # Frame container do calendário semanal
@@ -95,7 +189,7 @@ def mostrar(parent):
                 texto_linha = f"{consulta.data.strftime('%H:%M')} - {p.nome}- {consulta.tratamento}"
                 
                 # Mudado para .grid() para fixar o alinhamento esquerdo e adicionado wraplength para evitar deformações
-                lbl_item = ctk.CTkLabel(consulta_frame, text=texto_linha, justify="left", font=("Arial", 11), wraplength=130)
+                lbl_item = ctk.CTkLabel(consulta_frame, text=texto_linha, justify="left", font=("Arial", 16), wraplength=130)
                 lbl_item.grid(row=0, column=0, sticky="w", padx=10, pady=8)
 
                 #botão de excluir consulta
@@ -110,3 +204,14 @@ def mostrar(parent):
                     hover_color="#7a1f1f",     # Vermelho um pouco mais vivo quando o mouse passa por cima
                     text_color="#ffffff"       # Garante que o X fique totalmente branco
                 ).grid(row=0, column=1, sticky="e", padx=10, pady=8) # Mudado para .grid() para fixar no canto direito
+                ctk.CTkButton(
+                    consulta_frame, 
+                    text="✏️", 
+                    command=lambda c=consulta: [abrir_janela_editar(c)], 
+                    width=28,
+                    height=28,
+                    corner_radius=6,          # Deixa os cantos do botão levemente arredondados
+                    fg_color="#053614",        # Vermelho bem escuro (simula o vermelho transparente sobre o fundo cinza)
+                    hover_color="#3a6b3e",     # Vermelho um pouco mais vivo quando o mouse passa por cima
+                    text_color="#ffffff"       # Garante que o X fique totalmente branco
+                ).grid(row=1, column=1, sticky="e", padx=10, pady=8) # Mudado para .grid() para fixar no canto direito
