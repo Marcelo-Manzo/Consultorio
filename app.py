@@ -13,8 +13,8 @@ class App(ctk.CTk):
         self.title("Consultório")
         self.geometry("900x600")
         
-        # Frame lateral com botões de navegação
-        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0)
+        # Frame lateral com botões de navegação (CORRIGIDO: adicionado fg_color para contraste profundo)
+        self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#111214")
                                     # fill y preenche verticalmente
         self.sidebar.pack(side="left", fill="y", padx=0, pady=0)
         # Cria o menu lateral — um frame (caixa) de 200px de largura, cantos retos (corner_radius=0). O .pack(side="left", fill="y") coloca ele na esquerda e preenche verticalmente.
@@ -47,8 +47,8 @@ class App(ctk.CTk):
         #agenda
                 
         
-        # Frame principal onde as telas aparecem
-        self.main_frame = ctk.CTkFrame(self)
+        # Frame principal onde as telas aparecem (CORRIGIDO: fg_color="transparent" para profundidade visual)
+        self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
                                           #preenche todo o resto horizontal e vertical
         self.main_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
         # Cria o frame principal (área grande à direita) onde as telas de Pacientes e Consultas vão aparecer. fill="both" + expand=True fazem ele ocupar todo o espaço disponível.
