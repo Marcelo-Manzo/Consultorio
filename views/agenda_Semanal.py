@@ -186,7 +186,7 @@ def mostrar(parent):
                 consulta_frame.columnconfigure(1, weight=0)
                 
                 # Texto formatado dentro do card arredondado
-                texto_linha = f"{consulta.data.strftime('%H:%M')} - {p.nome}- {consulta.tratamento}"
+                texto_linha = f"{consulta.data.strftime('%H:%M')}\n - {p.nome} \n- {consulta.tratamento}"
                 
                 # Mudado para .grid() para fixar o alinhamento esquerdo e adicionado wraplength para evitar deformações
                 lbl_item = ctk.CTkLabel(consulta_frame, text=texto_linha, justify="left", font=("Arial", 16), wraplength=130)
