@@ -54,7 +54,7 @@ class App(ctk.CTk):
         # Cria o frame principal (área grande à direita) onde as telas de Pacientes e Consultas vão aparecer. fill="both" + expand=True fazem ele ocupar todo o espaço disponível.
         
         # Inicia mostrando a tela de pacientes
-        self.mostrar_pacientes()
+        self.mostrar_agenda_semanal()
     
     # Remove todos os elementos dentro do main_frame. Isso é necessário antes de trocar de tela — senão os elementos se acumulam um em cima do outro
     def limpar_frame(self):
