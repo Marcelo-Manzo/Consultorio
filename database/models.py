@@ -100,13 +100,13 @@ def listar_consultas_paciente(paciente_id):
         result = conn.execute(query, {"id": paciente_id})
         return result.fetchall()
 
-def listar_faltas():
+def listar_faltas_data(data):
     db = get_db()
     query = text("""
         SELECT p.nome, c.tratamento, c.data
         FROM Consultas c
         JOIN Pacientes p ON c.paciente_id = p.id
-        WHERE c.compareceu = 0
+        WHERE c.compareceu = 0 and CONVERT(VARCHAR(10), data, 23) = :data
         ORDER BY c.data DESC
     """)
     with db as conn:
