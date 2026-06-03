@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime, timedelta
-from database.models import listar_faltas_data
+from database.models import listar_faltas_data,marcar_comparecimento
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}
@@ -20,15 +20,11 @@ def mostrar(parent):
 
     def acao_resolver_falta(id_consulta):
         """
-        O que fazer aqui:
-        1. Quando o usuário clica no '✔', significa que a falta foi tratada/justificada.
-        2. Você deve ir no banco de dados e atualizar o status dessa consulta (ex: de 'Faltou' para 'Justificado' ou 'Arquivado').
-        3. Após atualizar o banco, chame a função `atualizar_tabela_faltantes()` para a linha sumir da tela na hora!
+        Quando o usuário clica no '✔', significa que o paciente apareceu 
+        (ou a falta foi resolvida).
         """
-        # [SEU CÓDIGO AQUI]
-        print(f"Botão Resolver (✔) clicado para a consulta ID: {id_consulta}")
-        # atualizar_tabela_faltantes() # <-- Descomente isso quando fizer o código acima
-        pass
+        marcar_comparecimento(id_consulta) # Salva no banco
+        atualizar_tabela_faltantes()       # Atualiza a tela da sua sogra na hora!
 
     def abrir_detalhes_paciente(id_paciente):
         """
@@ -36,6 +32,7 @@ def mostrar(parent):
         1. Executada quando o usuário dá um Duplo Clique na linha ou no nome do paciente.
         2. Você pode abrir uma janela mostrando o prontuário, telefone ou histórico do paciente.
         """
+
         # [SEU CÓDIGO AQUI]
         print(f"Duplo clique: Abrindo prontuário do paciente ID: {id_paciente}")
         pass

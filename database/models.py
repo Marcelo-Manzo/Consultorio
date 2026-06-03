@@ -18,6 +18,7 @@ def listar_pacientes():
     query = text("SELECT * FROM Pacientes ORDER BY nome")
     with db as conn:
         result = conn.execute(query)
+        #fetchall() retorna em dicionarios para o python
         return result.fetchall()
 
 def buscar_paciente_por_nome(nome):
@@ -103,22 +104,35 @@ def listar_consultas_paciente(paciente_id):
 def listar_faltas_data(data):
     db = get_db()
     query = text("""
-        SELECT p.nome, c.tratamento, c.data
+        SELECT 
+            p.nome, 
+            c.tratamento, 
+            c.data,
+            c.id AS id_consulta,        -- IMPORTANTE: Precisamos do ID da consulta para o botão Concluir/Remarcar
+            c.paciente_id AS id_paciente -- IMPORTANTE: Precisamos do ID do paciente para o Duplo Clique
         FROM Consultas c
         JOIN Pacientes p ON c.paciente_id = p.id
-        WHERE c.compareceu = 0 and CONVERT(VARCHAR(10), data, 23) = :data
+        WHERE c.compareceu = 0 AND CONVERT(VARCHAR(10), c.data, 23) = :data
         ORDER BY c.data DESC
     """)
+    
     with db as conn:
-        result = conn.execute(query)
-        return result.fetchall()
+        # CORREÇÃO 1: Passando o dicionário {"data": data} para preencher o :data do SQL
+        result = conn.execute(query, {"data": data})
+        
+        # CORREÇÃO 2: .mappings().fetchall() garante que o retorno seja lido como dicionário: faltante["nome"]
+        return result.mappings().fetchall()
 
-def marcar_comparecimento(consulta_id, compareceu):
+def marcar_comparecimento(consulta_id):
     db = get_db()
+    # Usando parâmetros nomeados padrões do SQLAlchemy
     query = text("UPDATE Consultas SET compareceu = :compareceu WHERE id = :id")
     with db as conn:
-        conn.execute(query, {"compareceu": compareceu, "id": consulta_id})
-        db.commit()  # CORRIGIDO: Commit dentro do bloco with
+        # Passa os parâmetros diretamente no execute
+        conn.execute(query, {"compareceu": 1, "id": consulta_id})
+        
+        # O commit DEVE ser feito na conexão/sessão ativa que está no bloco
+        conn.commit()
 
 def marcar_pagamento(consulta_id, pago):
     db = get_db()
