@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from views import pacientes, consultas, agenda_Semanal
+from views import pacientes, consultas, agenda_Semanal, faltantes
 # Importa a biblioteca CustomTkinter e os módulos de views que contêm as telas.
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
@@ -45,6 +45,12 @@ class App(ctk.CTk):
             width=180
         ).pack(pady=10)
         #agenda
+        ctk.CTkButton(
+            self.sidebar,
+            text="Faltantes",
+            command=self.mostrar_faltantes,
+            width=180
+        ).pack(pady=10)
                 
         
         # Frame principal onde as telas aparecem (CORRIGIDO: fg_color="transparent" para profundidade visual)
@@ -73,6 +79,13 @@ class App(ctk.CTk):
     def mostrar_agenda_semanal(self):
         self.limpar_frame()
         agenda_Semanal.mostrar(self.main_frame)
+
+    def mostrar_faltantes(self):
+        self.limpar_frame()
+        faltantes.mostrar(self.main_frame)
+
+    
+
 
 if __name__ == "__main__":
     app = App()
