@@ -11,7 +11,7 @@ def criar_paciente(nome, telefone, cpf):
     """)
     with db as conn:
         conn.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
-        db.commit()  # CORRIGIDO: Commit dentro do bloco with
+        conn.commit()  # CORRIGIDO: Commit na conexão ativa dentro do bloco with
 
 def listar_pacientes():
     db = get_db()
@@ -51,7 +51,37 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
             "valor": valor,
             "metodo_pagamento": metodo_pagamento
         })
-        db.commit()  # CORRIGIDO: Commit garantido dentro do bloco with
+        conn.commit()  # CORRIGIDO: Commit garantido na conexão ativa dentro do bloco with
+
+def buscar_consulta_por_id(consulta_id):
+    """
+    Mantida para a Agenda funcionar com objetos puros.
+    Acessada via: consulta.data, consulta.tratamento
+    """
+    db = get_db()
+    query = text("""
+        SELECT * FROM Consultas 
+        WHERE id = :id
+    """)
+    with db as conn:
+        result = conn.execute(query, {"id": consulta_id})
+        return result.fetchone()
+
+def buscar_consulta_por_id_dict(consulta_id):
+    """
+    NOVA FUNÇÃO: Criada especificamente para a tela de Faltantes.
+    Retorna um dicionário puro para não quebrar a Agenda.
+    Acessada via: consulta['data'], consulta['tratamento']
+    """
+    db = get_db()
+    query = text("""
+        SELECT * FROM Consultas 
+        WHERE id = :id
+    """)
+    with db as conn:
+        result = conn.execute(query, {"id": consulta_id})
+        # .mappings().fetchone() traz uma única linha como dicionário, ou None se o ID não existir
+        return result.mappings().fetchone()
 
 def deletar_consulta(consulta_id):
     db = get_db()
@@ -59,7 +89,7 @@ def deletar_consulta(consulta_id):
     query = text("DELETE FROM Consultas WHERE id = :consulta_id")
     with db as conn:
         conn.execute(query, {"consulta_id": consulta_id})
-        db.commit()
+        conn.commit()  # CORRIGIDO: Commit na conexão ativa
 
 def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):
     db = get_db()
@@ -80,7 +110,7 @@ def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagame
             "valor": valor,
             "metodo_pagamento": metodo_pagamento
         })
-        db.commit()
+        conn.commit()  # CORRIGIDO: Commit na conexão ativa
 
 def listar_consultas_data(data):
     db = get_db()
@@ -139,7 +169,7 @@ def marcar_pagamento(consulta_id, pago):
     query = text("UPDATE Consultas SET pago = :pago WHERE id = :id")
     with db as conn:
         conn.execute(query, {"pago": pago, "id": consulta_id})
-        db.commit()  # CORRIGIDO: Commit dentro do bloco with
+        conn.commit()  # CORRIGIDO: Commit dentro do bloco with
 
 def listar_tratamentos():
     db = get_db()

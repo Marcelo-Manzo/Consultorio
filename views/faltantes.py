@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime, timedelta
-from database.models import listar_faltas_data,marcar_comparecimento
+from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, update_consulta
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}
@@ -8,15 +8,90 @@ controle_semana = {"deslocamento": 0}
 def mostrar(parent):
 
     def acao_remarcar(id_consulta):
-        """
-        O que fazer aqui:
-        1. Você recebe o ID da consulta que o paciente faltou.
-        2. Pode abrir uma nova janela (ctk.CTkToplevel) com o formulário de agendamento.
-        3. Dica: Você pode pré-preencher o nome do paciente nessa nova janela usando o id_consulta.
-        """
-        # [SEU CÓDIGO AQUI]
-        print(f"Botão Remarcar clicado para a consulta ID: {id_consulta}")
-        acao_resolver_falta("id")
+        frame_editar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
+        frame_editar_consulta.title("Remarcar Consulta")
+        
+        largura_janela = 400
+        altura_janela = 220 # CORRIGIDO: Janela menor já que tem menos campos
+
+        largura_tela = frame_editar_consulta.winfo_screenwidth()
+        altura_tela = frame_editar_consulta.winfo_screenheight()
+
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+
+        frame_editar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        frame_editar_consulta.grab_set()
+
+        #====================CustomTkinter======================
+        consulta = buscar_consulta_por_id_dict(id_consulta)
+
+        lbl_topo = ctk.CTkLabel(frame_editar_consulta, text="Escolha a Nova Data e Horário", font=("Segoe UI", 15, "bold"), text_color="#ffffff")
+        lbl_topo.pack(pady=15)
+
+        data_entry = ctk.CTkEntry(frame_editar_consulta, width=280, placeholder_text="Data (DD/MM/AAAA)", fg_color="#2b2b2b")
+        data_entry.pack(pady=6)
+        # CORRIGIDO: Acesso por chave ["data"]
+        data_entry.insert(0, consulta["data"].strftime('%d/%m/%Y')) 
+
+        horario_entry = ctk.CTkEntry(frame_editar_consulta, width=280, placeholder_text="Horário", fg_color="#2b2b2b")
+        horario_entry.pack(pady=6)
+        # CORRIGIDO: Acesso por chave ["data"]
+        horario_entry.insert(0, consulta["data"].strftime('%H:%M'))
+
+        resultado_editar_label = ctk.CTkLabel(frame_editar_consulta, text="", font=("Segoe UI", 12))
+        resultado_editar_label.pack(pady=5)
+
+        def realizar_update():
+            data_str = data_entry.get()
+            horario_str = horario_entry.get()
+
+            try:
+                data_obj = datetime.strptime(data_str, "%d/%m/%Y")
+                horario_obj = datetime.strptime(horario_str, "%H:%M").time()
+                data_e_horario_final = datetime.combine(data_obj.date(), horario_obj)
+            except ValueError:
+                resultado_editar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
+                return
+
+            # 1. Atualiza o banco de dados
+            update_consulta(consulta["id"], consulta["tratamento"], data_e_horario_final, consulta["valor"], consulta["metodo_pagamento"])
+            
+            # 2. Fecha a janela de edição/remarcação
+            frame_editar_consulta.destroy()
+
+            # 3. CRIA O POPUP DE SUCESSO PERSONALIZADO
+            popup_sucesso = ctk.CTkToplevel(parent, fg_color="#1e1f22")
+            popup_sucesso.title("Sucesso")
+            popup_sucesso.geometry("300x150")
+            
+            # Centraliza o popup de sucesso na tela
+            p_largura = 300
+            p_altura = 150
+            l_tela = popup_sucesso.winfo_screenwidth()
+            a_tela = popup_sucesso.winfo_screenheight()
+            pos_x = int((l_tela / 2) - (p_largura / 2))
+            pos_y = int((a_tela / 2) - (p_altura / 2))
+            popup_sucesso.geometry(f"{p_largura}x{p_altura}+{pos_x}+{pos_y}")
+            
+            popup_sucesso.grab_set() # Foca a atenção total no popup
+            
+            # Conteúdo do Popup
+            lbl_msg = ctk.CTkLabel(popup_sucesso, text="✨ Consulta remarcada\ncom sucesso!", font=("Segoe UI", 14, "bold"), text_color="#ffffff")
+            lbl_msg.pack(pady=(25, 15))
+            
+            def fechar_popup():
+                popup_sucesso.destroy()
+                # Só atualiza a tela de faltantes DEPOIS que ela clicar em OK
+                atualizar_tabela_faltantes()
+
+            btn_ok = ctk.CTkButton(popup_sucesso, text="OK", command=fechar_popup, fg_color="#1f6aa5", hover_color="#144870", width=100, font=("Segoe UI", 12, "bold"))
+            btn_ok.pack()
+
+        ctk.CTkButton(frame_editar_consulta, text="Salvar Alterações", command=realizar_update, fg_color="#1f6aa5", hover_color="#144870", font=("Segoe UI", 13, "bold"), height=35, width=180).pack(pady=15)
+        
+        print(f"Janela de remarcação aberta para a consulta ID: {id_consulta}")
+        # REMOVIDO: Linha com acao_resolver_falta("id") deletada para não causar bugs de execução precoce
 
     def acao_resolver_falta(id_consulta):
         """
