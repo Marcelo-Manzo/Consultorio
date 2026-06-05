@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime, timedelta
-from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, update_consulta
+from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, criar_consulta
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}
@@ -54,13 +54,16 @@ def mostrar(parent):
                 resultado_editar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
-            # 1. Atualiza o banco de dados
-            update_consulta(consulta["id"], consulta["tratamento"], data_e_horario_final, consulta["valor"], consulta["metodo_pagamento"])
+            # 1. Cria a consulta nova apontando para o PACIENTE correto
+            criar_consulta(consulta["paciente_id"], consulta["tratamento"], data_e_horario_final, consulta["valor"], consulta["metodo_pagamento"])
             
-            # 2. Fecha a janela de edição/remarcação
+            # 2. Atualiza a consulta antiga para o status 2 (Falta Remarcada)
+            marcar_comparecimento(consulta["id"], status=2)
+            
+            # 3. Fecha a janela de edição/remarcação
             frame_editar_consulta.destroy()
 
-            # 3. CRIA O POPUP DE SUCESSO PERSONALIZADO
+            # 4. CRIA O POPUP DE SUCESSO PERSONALIZADO
             popup_sucesso = ctk.CTkToplevel(parent, fg_color="#1e1f22")
             popup_sucesso.title("Sucesso")
             popup_sucesso.geometry("300x150")

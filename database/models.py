@@ -153,16 +153,13 @@ def listar_faltas_data(data):
         # CORREÇÃO 2: .mappings().fetchall() garante que o retorno seja lido como dicionário: faltante["nome"]
         return result.mappings().fetchall()
 
-def marcar_comparecimento(consulta_id):
+def marcar_comparecimento(consulta_id, status=1):
     db = get_db()
-    # Usando parâmetros nomeados padrões do SQLAlchemy
-    query = text("UPDATE Consultas SET compareceu = :compareceu WHERE id = :id")
+    # Agora aceita :status dinamicamente (pode ser 1 para compareceu, 2 para remarcado, etc.)
+    query = text("UPDATE Consultas SET compareceu = :status WHERE id = :id")
     with db as conn:
-        # Passa os parâmetros diretamente no execute
-        conn.execute(query, {"compareceu": 1, "id": consulta_id})
-        
-        # O commit DEVE ser feito na conexão/sessão ativa que está no bloco
-        conn.commit()
+        conn.execute(query, {"status": status, "id": consulta_id})
+        conn.commit()  # Mantido o commit correto na conexão ativa
 
 def marcar_pagamento(consulta_id, pago):
     db = get_db()
