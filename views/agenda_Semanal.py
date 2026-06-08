@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_id, deletar_consulta, update_consulta, listar_tratamentos
+from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_nome, deletar_consulta, update_consulta, listar_tratamentos
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela
@@ -145,8 +145,168 @@ def mostrar(parent):
         print(f"Abrindo detalhes da consulta ID: {id_consulta}")
         
     def abrir_janela_novo_agendamento(data_selecionada, horario_selecionado):
-        print(f"Abrindo formulário de cadastro para o dia {data_selecionada} às {horario_selecionado}")
-        # Próximo passo: Construir o formulário de inclusão aqui dentro!
+        frame_criar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
+        frame_criar_consulta.title("Novo Agendamento")
+        
+        # Dimensões compactas e elegantes graças ao layout em colunas
+        largura_janela = 400
+        altura_janela = 450 
+
+        largura_tela = frame_criar_consulta.winfo_screenwidth()
+        altura_tela = frame_criar_consulta.winfo_screenheight()
+
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+
+        frame_criar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        frame_criar_consulta.grab_set()
+
+        # Estado para armazenar o paciente encontrado na busca
+        paciente_selecionado = {"id": None, "nome": ""}
+
+        # ==================================================================
+        # LÓGICA DE SALVAMENTO (Declarada antes dos botões)
+        # ==================================================================
+        def salvar_agendamento():
+            tratamento = tratamento_dropdown.get()
+            data_str = data_entry.get()
+            horario_str = horario_entry.get()
+            valor = valor_entry.get()
+            metodo = metodo_dropdown.get()
+            
+            if paciente_selecionado["id"] is None:
+                resultado_salvar_label.configure(text="❌ Busque e selecione um paciente primeiro.", text_color="#f87171")
+                return
+
+            try:
+                data_obj = datetime.strptime(data_str, "%d/%m/%Y")
+                horario_obj = datetime.strptime(horario_str, "%H:%M").time()
+                data_e_horario_final = datetime.combine(data_obj.date(), horario_obj)
+            except ValueError:
+                resultado_salvar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
+                return
+
+            # Executa a query de INSERT global do banco de dados
+            criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
+            
+            # Fecha a janela e recarrega a grade da agenda imediatamente
+            frame_criar_consulta.destroy()
+            atualizar_dados_agenda()
+
+        # ==================================================================
+        # LÓGICA DE BUSCA DO PACIENTE
+        # ==================================================================
+        def buscar_paciente():
+            nome = nome_busca_entry.get()
+            if not nome.strip():
+                resultado_label.configure(text="❌ Digite um nome para buscar.", text_color="#f87171")
+                return
+                
+            pacientes = buscar_paciente_por_nome(nome)
+            
+            if len(pacientes) == 0:
+                resultado_label.configure(text="❌ Paciente não encontrado", text_color="#f87171")
+                paciente_selecionado["id"] = None
+            elif len(pacientes) == 1:
+                p = pacientes[0]
+                paciente_selecionado["id"] = p.id
+                paciente_selecionado["nome"] = p.nome
+                resultado_label.configure(text=f"✓ {p.nome} || CPF: {p.cpf}", text_color="#4ade80")
+            else:
+                resultado_label.configure(text=f"⚠ {len(pacientes)} resultados. Seja mais específico.", text_color="#fbbf24")
+
+        # ==================================================================
+        # INTERFACE VISUAL (Estrutura Principal usando PACK)
+        # ==================================================================
+        lbl_topo = ctk.CTkLabel(frame_criar_consulta, text="Criar Novo Agendamento", font=("Segoe UI", 16, "bold"), text_color="#ffffff")
+        lbl_topo.pack(pady=(15, 10))
+
+        # Bloco de Busca (Isolado com GRID interno)
+        frame_formulario = ctk.CTkFrame(frame_criar_consulta, fg_color="#141517", border_width=1, border_color="#242528", corner_radius=10)
+        frame_formulario.pack(fill="x", padx=25, pady=5)
+        frame_formulario.columnconfigure(0, weight=1)
+        frame_formulario.columnconfigure(1, weight=0)
+
+        nome_busca_entry = ctk.CTkEntry(frame_formulario, placeholder_text="Nome do paciente", fg_color="#2b2b2b", height=35)
+        nome_busca_entry.grid(row=0, column=0, sticky="ew", padx=(12, 6), pady=(12, 4))
+        
+        ctk.CTkButton(frame_formulario, text="Buscar", command=buscar_paciente, width=70, height=35, fg_color="#2b2b2b", hover_color="#3a3a3a").grid(row=0, column=1, sticky="e", padx=(0, 12), pady=(12, 4))
+
+        resultado_label = ctk.CTkLabel(frame_formulario, text="🔍 Digite o nome e clique em Buscar", font=("Segoe UI", 11), text_color="#888888")
+        resultado_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=12, pady=(2, 12))
+
+        # Campo: Tratamento
+        tratamentos_db = listar_tratamentos()
+        tratamentos_lista = [t.nome for t in tratamentos_db]
+        
+        ctk.CTkLabel(frame_criar_consulta, text="Tratamento:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w", padx=25, pady=(8, 0))
+        tratamento_dropdown = ctk.CTkComboBox(frame_criar_consulta, values=tratamentos_lista, width=350, fg_color="#2b2b2b", button_color="#3a3a3a")
+        tratamento_dropdown.pack(pady=2)
+
+        # ------------------------------------------------------------------
+        # LINHA HORIZONTAL 1: Data e Horário Lado a Lado
+        # ------------------------------------------------------------------
+        linha_data_hora = ctk.CTkFrame(frame_criar_consulta, fg_color="transparent")
+        linha_data_hora.pack(fill="x", padx=25, pady=4)
+        
+        # Coluna Data
+        coluna_data = ctk.CTkFrame(linha_data_hora, fg_color="transparent")
+        coluna_data.pack(side="left", expand=True, fill="x", padx=(0, 5))
+        ctk.CTkLabel(coluna_data, text="Data da Consulta:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        data_entry = ctk.CTkEntry(coluna_data, placeholder_text="DD/MM/AAAA", fg_color="#2b2b2b")
+        data_entry.pack(fill="x", pady=2)
+        try:
+            data_formatada = datetime.strptime(data_selecionada, "%Y-%m-%d").strftime("%d/%m/%Y")
+            data_entry.insert(0, data_formatada)
+        except ValueError:
+            data_entry.insert(0, data_selecionada)
+
+        # Coluna Horário
+        coluna_hora = ctk.CTkFrame(linha_data_hora, fg_color="transparent")
+        coluna_hora.pack(side="right", expand=True, fill="x", padx=(5, 0))
+        ctk.CTkLabel(coluna_hora, text="Horário:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        horario_entry = ctk.CTkEntry(coluna_hora, placeholder_text="HH:MM", fg_color="#2b2b2b")
+        horario_entry.pack(fill="x", pady=2)
+        horario_entry.insert(0, horario_selecionado)
+
+        # ------------------------------------------------------------------
+        # LINHA HORIZONTAL 2: Valor e Forma de Pagamento Lado a Lado
+        # ------------------------------------------------------------------
+        linha_valor_pago = ctk.CTkFrame(frame_criar_consulta, fg_color="transparent")
+        linha_valor_pago.pack(fill="x", padx=25, pady=4)
+
+        # Coluna Valor
+        coluna_valor = ctk.CTkFrame(linha_valor_pago, fg_color="transparent")
+        coluna_valor.pack(side="left", expand=True, fill="x", padx=(0, 5))
+        ctk.CTkLabel(coluna_valor, text="Valor:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        valor_entry = ctk.CTkEntry(coluna_valor, placeholder_text="ex: 150.00", fg_color="#2b2b2b")
+        valor_entry.pack(fill="x", pady=2)
+
+        # Coluna Pagamento
+        coluna_pagamento = ctk.CTkFrame(linha_valor_pago, fg_color="transparent")
+        coluna_pagamento.pack(side="right", expand=True, fill="x", padx=(5, 0))
+        ctk.CTkLabel(coluna_pagamento, text="Pagamento:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        metodo_dropdown = ctk.CTkComboBox(coluna_pagamento, values=["Pix", "Débito", "Crédito", "Dinheiro"], fg_color="#2b2b2b", button_color="#3a3a3a")
+        metodo_dropdown.pack(fill="x", pady=2)
+
+        # ==================================================================
+        # BASE DA JANELA (Mensagem de erro/sucesso + Ação)
+        # ==================================================================
+        resultado_salvar_label = ctk.CTkLabel(frame_criar_consulta, text="", font=("Segoe UI", 11))
+        resultado_salvar_label.pack(pady=4)
+
+        # Botão de ação único centralizado na base da janela
+        ctk.CTkButton(
+            frame_criar_consulta, 
+            text="Confirmar Agendamento", 
+            command=salvar_agendamento, 
+            fg_color="#1f6aa5", 
+            hover_color="#144870", 
+            font=("Segoe UI", 13, "bold"), 
+            height=38, 
+            width=220
+        ).pack(pady=(5, 15))
+
     
     def abrir_janela_editar(consulta):
         frame_editar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
