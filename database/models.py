@@ -124,6 +124,27 @@ def listar_consultas_data(data):
         result = conn.execute(query, {"data": data})
         return result.fetchall()
 
+def listar_consultas_com_paciente_por_data(data_selecionada):
+    db = get_db()
+    query = text("""
+        SELECT 
+            c.id AS consulta_id,
+            c.data,
+            c.tratamento,
+            c.valor,
+            c.metodo_pagamento,
+            c.compareceu,
+            p.id AS paciente_id,
+            p.nome
+        FROM Consultas c
+        INNER JOIN Pacientes p ON c.paciente_id = p.id
+        -- Trocado aqui: CAST converte o DATETIME para o tipo DATE do SQL Server
+        WHERE CAST(c.data AS DATE) = :data AND c.compareceu = 0
+        ORDER BY c.data ASC
+    """)
+    with db as conn:
+        return conn.execute(query, {"data": data_selecionada}).mappings().all()
+    
 def listar_consultas_paciente(paciente_id):
     db = get_db()
     query = text("SELECT * FROM Consultas WHERE paciente_id = :id ORDER BY data DESC")

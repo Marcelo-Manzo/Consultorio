@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_data, buscar_paciente_por_id, deletar_consulta, update_consulta, listar_tratamentos
+from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_id, deletar_consulta, update_consulta, listar_tratamentos
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela
@@ -13,6 +13,9 @@ def mostrar(parent):
         "labels_data": []
     }
 
+    # Mantido estático no topo da função: Carrega uma única vez na memória
+    horarios = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30','13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00']
+    
     # Nova abordagem limpa: atualiza textos e substitui apenas os cards de consultas
     def atualizar_dados_agenda():
         hoje = datetime.now()
@@ -21,8 +24,6 @@ def mostrar(parent):
         mes_ano_texto = inicio_semana.strftime("%B / %Y").capitalize()
         titulo.configure(text=f"Agenda — {mes_ano_texto}")
         
-        dias_nomes = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"]
-
         # Loop para varrer as colunas fixas e atualizar o conteúdo interno de cada dia
         for i in range(5):
             data_dia = inicio_semana + timedelta(days=i)
@@ -38,39 +39,57 @@ def mostrar(parent):
             # Formata a data atual da coluna para o banco de dados
             data_banco = data_dia.strftime('%Y-%m-%d')
             
-            # Busca apenas as consultas correspondentes a essa data específica
-            consultas = listar_consultas_data(data_banco)
-            for consulta in consultas:
-                p_lista = buscar_paciente_por_id(consulta.paciente_id)
-
-                if p_lista: # Garante que o banco encontrou o paciente para não quebrar
-                    p = p_lista
-                    
-                    # Criamos um CTkFrame interno (o card) arredondado com borda sutil e neutra
+            # Busca todas as consultas do dia contendo o JOIN com os dados dos pacientes mapeados
+            consultas_dia = listar_consultas_com_paciente_por_data(data_banco)
+            
+            # Varremos a lista estática de horários um por um
+            for hora_teste in horarios:
+                
+                # Procura se existe alguma consulta no banco de dados para a hora corrente
+                consulta_encontrada = None
+                for c in consultas_dia:
+                    if c["data"].strftime('%H:%M') == hora_teste:
+                        consulta_encontrada = c
+                        break
+                
+                if consulta_encontrada:
+                    # ==================================================================
+                    # CARD OCUPADO: Existe agendamento no horário
+                    # ==================================================================
                     consulta_frame = ctk.CTkFrame(scroll_dia, fg_color="#212225", border_width=1, border_color="#3a3a3a", corner_radius=8)
                     consulta_frame.pack(fill="x", padx=2, pady=4)
-                    
-                    # Configuração de colunas internas para garantir a uniformidade e alinhamento reto na mesma linha
-                    consulta_frame.columnconfigure(0, weight=1) # Texto pega todo o espaço esquerdo
-                    consulta_frame.columnconfigure(1, weight=0) # Botão Editar compacto
-                    consulta_frame.columnconfigure(2, weight=0) # Botão Excluir fixado na extrema direita
-                    
-                    # Texto formatado dentro do card arredondado
-                    texto_linha = f"{consulta.data.strftime('%H:%M')} - {p.nome}\n{consulta.tratamento}"
-                    
-                    # Alinhamento esquerdo fixo e wraplength para evitar deformações nas colunas
-                    lbl_item = ctk.CTkLabel(consulta_frame, text=texto_linha, justify="left", font=("Segoe UI", 12, "bold"), text_color="#ffffff", wraplength=105)
-                    lbl_item.grid(row=0, column=0, sticky="w", padx=8, pady=8)
 
-                    # Sistema de Duplo Clique (Ativado no card e no texto da label)
-                    consulta_frame.bind("<Double-Button-1>", lambda event, c_id=consulta.id: abrir_janela_detalhes(c_id))
-                    lbl_item.bind("<Double-Button-1>", lambda event, c_id=consulta.id: abrir_janela_detalhes(c_id))
+                    # Configuração de colunas internas do Card
+                    consulta_frame.columnconfigure(0, weight=1) # Bloco de textos (pega a esquerda toda)
+                    consulta_frame.columnconfigure(1, weight=0) # Botão Editar compactado
+                    consulta_frame.columnconfigure(2, weight=0) # Botão Excluir compacto
 
-                    # Botão "Editar" com suas configurações de cores anteriores mantidas (#053d1c)
+                    # 1. Sub-frame exclusivo para organizar os textos verticalmente sem afetar os botõeslaterais
+                    sub_frame_texto = ctk.CTkFrame(consulta_frame, fg_color="transparent")
+                    sub_frame_texto.grid(row=0, column=0, sticky="w", padx=8, pady=6)
+
+                    # Linha 1: Horário destacado em azul/verde claro + Nome do Paciente reto
+                    texto_topo = f"{hora_teste} - {consulta_encontrada['nome']}"
+                    lbl_topo = ctk.CTkLabel(sub_frame_texto, text=texto_topo, justify="left", font=("Segoe UI", 11, "bold"), text_color="#8d9c93")
+                    lbl_topo.pack(anchor="w")
+
+                    # Linha 2: Tratamento logo abaixo, com uma cor mais sutil (cinza claro) para dar hierarquia visual
+                    lbl_sub = ctk.CTkLabel(sub_frame_texto, text=consulta_encontrada['tratamento'], justify="left", font=("Segoe UI", 10), text_color="#94a8c9")
+                    lbl_sub.pack(anchor="w")
+
+                    # ID correto da consulta vindo do JOIN para amarrar as ações
+                    c_id = consulta_encontrada["consulta_id"]
+
+                    # Sistema de Duplo Clique aplicado no frame e nas duas labels de texto
+                    consulta_frame.bind("<Double-Button-1>", lambda event, id_c=c_id: abrir_janela_detalhes(id_c))
+                    lbl_topo.bind("<Double-Button-1>", lambda event, id_c=c_id: abrir_janela_detalhes(id_c))
+                    lbl_sub.bind("<Double-Button-1>", lambda event, id_c=c_id: abrir_janela_detalhes(id_c))
+
+                    # Botão "Editar" mantido alinhado na extrema direita
                     ctk.CTkButton(
                         consulta_frame, 
                         text="Editar", 
-                        command=lambda c=consulta: [abrir_janela_editar(c)], 
+                        command=lambda c=consulta_encontrada: abrir_janela_editar(c), 
                         width=42,
                         height=24,
                         font=("Segoe UI", 10, "bold"),
@@ -80,11 +99,11 @@ def mostrar(parent):
                         text_color="#cfd0d4"
                     ).grid(row=0, column=1, sticky="e", padx=(0, 4), pady=8)
 
-                    # Botão de excluir consulta com recarregamento sutil imediato
+                    # Botão de excluir consulta mantido alinhado na extrema direita
                     ctk.CTkButton(
                         consulta_frame, 
                         text="❌", 
-                        command=lambda c_id=consulta.id: [deletar_consulta(c_id), atualizar_dados_agenda()], 
+                        command=lambda id_c=c_id: [deletar_consulta(id_c), atualizar_dados_agenda()], 
                         width=24,
                         height=24,
                         corner_radius=5,
@@ -92,6 +111,26 @@ def mostrar(parent):
                         hover_color="#542323",
                         text_color="#f87171"
                     ).grid(row=0, column=2, sticky="e", padx=(0, 8), pady=8)
+                
+                else:
+                    # ==================================================================
+                    # CARD VAZIO: Horário livre para sua sogra agendar
+                    # ==================================================================
+                    btn_vazio = ctk.CTkButton(
+                        scroll_dia,
+                        text=f"➕  {hora_teste}",
+                        font=("Segoe UI", 11, "bold"),
+                        text_color="#888888",
+                        fg_color="#1a1b1e",
+                        hover_color="#232429",
+                        border_width=1,
+                        border_color="#2b2b2b",
+                        corner_radius=6,
+                        height=35,
+                        # Passa a data da coluna e a hora do bloco para preencher o formulário futuro
+                        command=lambda d=data_banco, h=hora_teste: abrir_janela_novo_agendamento(d, h)
+                    )
+                    btn_vazio.pack(fill="x", padx=4, pady=3)
 
     # Funções de navegação alterando o estado do deslocamento global de forma limpa
     def avanca_semana():
@@ -104,6 +143,10 @@ def mostrar(parent):
     
     def abrir_janela_detalhes(id_consulta):
         print(f"Abrindo detalhes da consulta ID: {id_consulta}")
+        
+    def abrir_janela_novo_agendamento(data_selecionada, horario_selecionado):
+        print(f"Abrindo formulário de cadastro para o dia {data_selecionada} às {horario_selecionado}")
+        # Próximo passo: Construir o formulário de inclusão aqui dentro!
     
     def abrir_janela_editar(consulta):
         frame_editar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
@@ -130,23 +173,24 @@ def mostrar(parent):
         
         tratamento_dropdown = ctk.CTkComboBox(frame_editar_consulta, values=tratamentos_lista, width=280, fg_color="#2b2b2b", button_color="#3a3a3a")
         tratamento_dropdown.pack(pady=6)
-        tratamento_dropdown.set(consulta.tratamento)
+        # Adaptado para ler da chave do dicionário do JOIN ['tratamento']
+        tratamento_dropdown.set(consulta['tratamento'])
 
         data_entry = ctk.CTkEntry(frame_editar_consulta, width=280, placeholder_text="Data (DD/MM/AAAA)", fg_color="#2b2b2b")
         data_entry.pack(pady=6)
-        data_entry.insert(0, consulta.data.strftime('%d/%m/%Y')) 
+        data_entry.insert(0, consulta['data'].strftime('%d/%m/%Y')) 
 
         horario_entry = ctk.CTkEntry(frame_editar_consulta, width=280, placeholder_text="Horário", fg_color="#2b2b2b")
         horario_entry.pack(pady=6)
-        horario_entry.insert(0, consulta.data.strftime('%H:%M'))
+        horario_entry.insert(0, consulta['data'].strftime('%H:%M'))
 
         valor_entry = ctk.CTkEntry(frame_editar_consulta, width=280, placeholder_text="Valor (ex: 150.00)", fg_color="#2b2b2b")
         valor_entry.pack(pady=6)
-        valor_entry.insert(0, str(consulta.valor))
+        valor_entry.insert(0, str(consulta['valor']))
 
         metodo_dropdown = ctk.CTkComboBox(frame_editar_consulta, values=["Pix", "Débito", "Crédito", "Dinheiro", "Pendente"], width=280, fg_color="#2b2b2b", button_color="#3a3a3a")
         metodo_dropdown.pack(pady=6)
-        metodo_dropdown.set(consulta.metodo_pagamento if hasattr(consulta, 'metodo_pagamento') else "Método de pagamento")
+        metodo_dropdown.set(consulta['metodo_pagamento'] if 'metodo_pagamento' in consulta else "Método de pagamento")
 
         resultado_editar_label = ctk.CTkLabel(frame_editar_consulta, text="", font=("Segoe UI", 12))
         resultado_editar_label.pack(pady=5)
@@ -166,10 +210,11 @@ def mostrar(parent):
                 resultado_editar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
-            update_consulta(consulta.id, novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
+            # Atualiza usando a chave de ID correta da consulta
+            update_consulta(consulta['consulta_id'], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
             frame_editar_consulta.destroy()
 
-            # Atualiza apenas os dados internos sem dar "flash" ou quebrar a janela principal
+            # Atualiza os dados sem quebrar a renderização
             atualizar_dados_agenda()
 
         ctk.CTkButton(frame_editar_consulta, text="Salvar Alterações", command=realizar_update, fg_color="#1f6aa5", hover_color="#144870", font=("Segoe UI", 13, "bold"), height=35, width=180).pack(pady=15)
