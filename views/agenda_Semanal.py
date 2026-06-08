@@ -173,9 +173,14 @@ def mostrar(parent):
             horario_str = horario_entry.get()
             valor = valor_entry.get()
             metodo = metodo_dropdown.get()
-            
+
+            # Remove espaços em branco que o usuário possa ter digitado sem querer
+            valor_str = valor.strip()
             if paciente_selecionado["id"] is None:
                 resultado_salvar_label.configure(text="❌ Busque e selecione um paciente primeiro.", text_color="#f87171")
+                return
+            if not valor_str:
+                resultado_salvar_label.configure(text="❌ Digite um valor", text_color="#f87171")
                 return
 
             try:
@@ -362,6 +367,10 @@ def mostrar(parent):
             novo_valor = valor_entry.get()
             novo_metodo = metodo_dropdown.get()
 
+            # Remove espaços em branco que o usuário possa ter digitado sem querer
+            valor_str = novo_valor.strip()
+            if not valor_str:
+                resultado_editar_label.configure(text="❌ Digite um valor.", text_color="#ff4a4a")
             try:
                 data_obj = datetime.strptime(data_str, "%d/%m/%Y")
                 horario_obj = datetime.strptime(horario_str, "%H:%M").time()
