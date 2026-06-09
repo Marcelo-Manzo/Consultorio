@@ -68,7 +68,7 @@ def mostrar(parent):
                     sub_frame_texto = ctk.CTkFrame(consulta_frame, fg_color="transparent")
                     sub_frame_texto.grid(row=0, column=0, sticky="w", padx=8, pady=6)
 
-                    # Linha 1: Horário destacado em azul/verde claro + Nome do Paciente reto
+                    # Linha 1: Horário + Nome do Paciente reto
                     texto_topo = f"{hora_teste} - {consulta_encontrada['nome']}"
                     lbl_topo = ctk.CTkLabel(sub_frame_texto, text=texto_topo, justify="left", font=("Segoe UI", 11, "bold"), text_color="#8d9c93")
                     lbl_topo.pack(anchor="w")
