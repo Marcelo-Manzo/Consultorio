@@ -89,6 +89,15 @@ def mostrar(parent):
         else:
             resultado_label.configure(text="❌ Preencha todos os campos obrigatórios.", text_color="#f87171")
         
+    def buscar_paciente():
+        nome = nome_entry.get()
+        cpf = cpf_entry.get()
+        telefone = telefone_entry.get()
+        if nome and cpf and telefone:
+            buscar_paciente_por_nome(nome)
+            resultado_label.configure(text="✓ Paciente cadastrado com sucesso!", text_color="#4ade80")
+        
+
     # Botão de cadastrar movido para o frame_formulario, com cores correspondentes e folga no topo
     ctk.CTkButton(
         frame_formulario,
@@ -100,6 +109,19 @@ def mostrar(parent):
         fg_color="#2b7a3e",
         hover_color="#1e542b"
     ).pack(pady=(25, 20))
+
+    ctk.CTkButton(
+        frame_formulario,
+        text="Buscar Paciente",
+        command=buscar_paciente,
+        width=280,
+        height=40,
+        font=("Segoe UI", 13, "bold"),
+        fg_color="#005688",
+        hover_color="#043D5E"
+    ).pack(pady=(25, 20))
+
+
 
     # Inicializa a lista ao abrir a tela
     atualizar_lista()
