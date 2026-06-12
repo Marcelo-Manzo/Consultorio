@@ -47,11 +47,14 @@ def mostrar(parent):
     lista_frame = ctk.CTkScrollableFrame(frame_lista, fg_color="transparent", label_text="")
     lista_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
     
-    def atualizar_lista():
+    # MODIFICAÇÃO: Agora aceita receber uma lista vinda de fora (como o resultado da busca)
+    def atualizar_lista(lista_filtrada=None):
         for widget in lista_frame.winfo_children():
             widget.destroy()
         
-        pacientes = listar_pacientes()
+        # Se recebeu uma lista da busca, usa ela. Se não, lista todos do banco.
+        pacientes = lista_filtrada if lista_filtrada is not None else listar_pacientes()
+        
         for p in pacientes:
             texto = f"Nome: {p.nome}\nTelefone: {p.telefone} | CPF: {p.cpf}"
             
@@ -68,15 +71,15 @@ def mostrar(parent):
             ).pack(anchor="w", padx=12, pady=10)
     
     def validar():
-        if nome_entry.get() == "" or cpf_entry.get() == "" or telefone_entry.get() == "":
+        if nome_entry.get().strip() == "" or cpf_entry.get().strip() == "" or telefone_entry.get().strip() == "":
             return False
         return True
     
     def cadastrar():
         if validar():
-            nome = nome_entry.get()
-            cpf = cpf_entry.get()
-            telefone = telefone_entry.get()
+            nome = nome_entry.get().strip()
+            cpf = cpf_entry.get().strip()
+            telefone = telefone_entry.get().strip()
             criar_paciente(nome, telefone, cpf)  # ordem correta
             
             # Limpa os campos após o sucesso
@@ -85,18 +88,31 @@ def mostrar(parent):
             telefone_entry.delete(0, "end")
             
             resultado_label.configure(text="✓ Paciente cadastrado com sucesso!", text_color="#4ade80")
-            atualizar_lista()
+            atualizar_lista()  # Recarrega trazendo todo mundo
         else:
             resultado_label.configure(text="❌ Preencha todos os campos obrigatórios.", text_color="#f87171")
         
     def buscar_paciente():
-        nome = nome_entry.get()
-        cpf = cpf_entry.get()
-        telefone = telefone_entry.get()
-        if nome and cpf and telefone:
-            buscar_paciente_por_nome(nome)
-            resultado_label.configure(text="✓ Paciente cadastrado com sucesso!", text_color="#4ade80")
+        nome_busca = nome_entry.get().strip()
         
+        # Se o campo de busca NÃO estiver vazio, filtra no banco
+        if nome_busca:
+            pacientes_encontrados = buscar_paciente_por_nome(nome_busca)
+            
+            if not pacientes_encontrados:
+                resultado_label.configure(text="❌ Nenhum paciente encontrado com esse nome.", text_color="#f87171")
+                # Limpa a lista da direita para dar o feedback visual de vazio
+                atualizar_lista([]) 
+                return
+            
+            # Renderiza a lista passando apenas os encontrados
+            atualizar_lista(pacientes_encontrados)
+            resultado_label.configure(text=f"🔍 Encontrado(s) {len(pacientes_encontrados)} paciente(s).", text_color="#4ade80")
+            
+        else:
+            # Se clicar em buscar com o campo vazio, reseta e mostra todo mundo de novo
+            atualizar_lista()
+            resultado_label.configure(text="✓ Listando todos os pacientes.", text_color="#9ca3af")
 
     # Botão de cadastrar movido para o frame_formulario, com cores correspondentes e folga no topo
     ctk.CTkButton(
@@ -108,20 +124,18 @@ def mostrar(parent):
         font=("Segoe UI", 13, "bold"),
         fg_color="#2b7a3e",
         hover_color="#1e542b"
-    ).pack(pady=(25, 20))
+    ).pack(pady=(25, 10)) # Reduzido o pady inferior para aproximar os botões
 
     ctk.CTkButton(
         frame_formulario,
-        text="Buscar Paciente",
+        text="Buscar por Nome",
         command=buscar_paciente,
         width=280,
         height=40,
         font=("Segoe UI", 13, "bold"),
         fg_color="#005688",
         hover_color="#043D5E"
-    ).pack(pady=(25, 20))
-
-
+    ).pack(pady=(0, 20))
 
     # Inicializa a lista ao abrir a tela
     atualizar_lista()
