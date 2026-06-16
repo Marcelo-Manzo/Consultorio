@@ -41,3 +41,5 @@ Para faltantes:
 2 = Faltou (Só vira 2 se a sua sogra for lá na agenda e clicar para registrar a falta).
 
 3 = Falta Remarcada (Substituindo o seu antigo status 2).
+
+isso é bom pois deixa o agendamento, falta, remarcação muito mais controlados e com mais abrangências em futuros projetos
