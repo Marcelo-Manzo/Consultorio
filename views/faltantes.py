@@ -134,9 +134,6 @@ def mostrar(parent):
     # Título da Tela
     titulo = ctk.CTkLabel(parent, text="Pacientes Faltantes", font=("Segoe UI", 24, "bold"), text_color="#ffffff")
     titulo.pack(pady=(20, 5), anchor="w", padx=25)
-    
-    subtitulo = ctk.CTkLabel(parent, text="Gerencie os agendamentos que não foram comparecidos", font=("Segoe UI", 13), text_color="#a0a0a5")
-    subtitulo.pack(pady=(0, 15), anchor="w", padx=25)
 
     # Frame para agrupar os botões horizontais acima do cabeçalho da tabela
     frame_botoes = ctk.CTkFrame(parent, fg_color="transparent")
