@@ -32,3 +32,12 @@ vc pega as coisas assim:    for consulta in consultas:
 adicionar em paciente
 adicionar em calendario:
 consulta: fzr dropdown com horarios livres para consulta
+
+Para faltantes:
+0 = Agendado / Pendente (O padrão assim que cria a consulta. Ela fica na agenda, mas não vai para a tela de faltas).
+
+1 = Compareceu (Sucesso).
+
+2 = Faltou (Só vira 2 se a sua sogra for lá na agenda e clicar para registrar a falta).
+
+3 = Falta Remarcada (Substituindo o seu antigo status 2).

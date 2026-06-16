@@ -163,7 +163,7 @@ def listar_faltas_data(data):
             c.paciente_id AS id_paciente -- IMPORTANTE: Precisamos do ID do paciente para o Duplo Clique
         FROM Consultas c
         JOIN Pacientes p ON c.paciente_id = p.id
-        WHERE c.compareceu = 0 AND CONVERT(VARCHAR(10), c.data, 23) = :data
+        WHERE c.compareceu = 2 AND CONVERT(VARCHAR(10), c.data, 23) = :data
         ORDER BY c.data DESC
     """)
     

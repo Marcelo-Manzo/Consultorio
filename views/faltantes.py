@@ -57,8 +57,8 @@ def mostrar(parent):
             # 1. Cria a consulta nova apontando para o PACIENTE correto
             criar_consulta(consulta["paciente_id"], consulta["tratamento"], data_e_horario_final, consulta["valor"], consulta["metodo_pagamento"])
             
-            # 2. Atualiza a consulta antiga para o status 2 (Falta Remarcada)
-            marcar_comparecimento(consulta["id"], status=2)
+            # 2. Atualiza a consulta antiga para o status 3 (Falta Remarcada)
+            marcar_comparecimento(consulta["id"], status=3)
             
             # 3. Fecha a janela de edição/remarcação
             frame_editar_consulta.destroy()
@@ -101,7 +101,7 @@ def mostrar(parent):
         Quando o usuário clica no '✔', significa que o paciente apareceu 
         (ou a falta foi resolvida).
         """
-        marcar_comparecimento(id_consulta) # Salva no banco
+        marcar_comparecimento(id_consulta,2) # Salva no banco
         atualizar_tabela_faltantes()       # Atualiza a tela da sua sogra na hora!
 
     def abrir_detalhes_paciente(id_paciente):
@@ -270,6 +270,25 @@ def mostrar(parent):
                         width=26, height=26, font=("Segoe UI", 11, "bold"), corner_radius=5,
                         fg_color="#2b2b2b", hover_color="#3a3a3a", text_color="#a0a0a5"
                     ).pack(side="left", padx=3)
+            else: 
+                data_formatada = data_dia.strftime('%d/%m')
+                
+                # Divisor sutil e limpo indicando o dia corrente
+                lbl_divisor = ctk.CTkLabel(
+                    tabela_scroll, 
+                    text=f"📅 {nome_dia.upper()} — {data_formatada}", 
+                    font=("Segoe UI", 12, "bold"), 
+                    text_color="#1f6aa5"
+                )
+                lbl_divisor.pack(anchor="w", padx=15, pady=(15, 5))
+
+                linha_frame = ctk.CTkFrame(tabela_scroll, height=50, corner_radius=6, border_width=1, border_color="#242528")
+                linha_frame.pack(fill="x", pady=4, padx=5)
+                linha_frame.pack_propagate(False)
+
+                Linha_Compareceu = ctk.CTkLabel(linha_frame, text="Ninguém faltou nesse dia", font=("Segoe UI", 14, "bold"), text_color="#a0a0a5")
+                # Faltou essa linha aqui embaixo:
+                Linha_Compareceu.pack(side="left", padx=15, pady=10)
 
     # Primeira execução para desenhar a tabela na abertura
     atualizar_tabela_faltantes()
