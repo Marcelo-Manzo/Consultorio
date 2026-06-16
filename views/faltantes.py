@@ -133,11 +133,11 @@ def mostrar(parent):
     
     # Título da Tela
     titulo = ctk.CTkLabel(parent, text="Pacientes Faltantes", font=("Segoe UI", 24, "bold"), text_color="#ffffff")
-    titulo.pack(pady=(20, 5), anchor="w", padx=25)
+    titulo.pack(pady=(20, 5), anchor="center", padx=25)
 
     # Frame para agrupar os botões horizontais acima do cabeçalho da tabela
     frame_botoes = ctk.CTkFrame(parent, fg_color="transparent")
-    frame_botoes.pack(pady=10, anchor="w", padx=25)
+    frame_botoes.pack(pady=10, anchor="center", padx=25)
 
     # Botões de navegação posicionados lado a lado usando side="left"
     ctk.CTkButton(frame_botoes, text="◀ Anterior", command=retroceder_semana, width=100, fg_color="#2b2b2b", hover_color="#3a3a3a").pack(side="left", padx=5)
