@@ -29,9 +29,6 @@ vc pega as coisas assim:    for consulta in consultas:
                                 id = consulta.id                       mt legal
 
 
-adicionar em paciente
-adicionar em calendario:
-consulta: fzr dropdown com horarios livres para consulta
 
 Para faltantes:
 0 = Agendado / Pendente (O padrão assim que cria a consulta. Ela fica na agenda, mas não vai para a tela de faltas).
