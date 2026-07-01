@@ -82,6 +82,23 @@ def buscar_consulta_por_id_dict(consulta_id):
         result = conn.execute(query, {"id": consulta_id})
         # .mappings().fetchone() traz uma única linha como dicionário, ou None se o ID não existir
         return result.mappings().fetchone()
+    
+def buscar_consulta_Atual(data_e_horario):
+    db = get_db()
+    
+    # 1. Ajustamos a query para usar ':data_param' em vez de '?'
+    query = text("""
+        SELECT c.id, p.nome, c.data, c.tratamento 
+        FROM Consultas c
+        JOIN Pacientes p ON c.paciente_id = p.id
+        WHERE c.data = :data_param AND c.compareceu = 0
+    """)
+    
+    with db as conn:
+        # 2. Passamos a chave do dicionário com o MESMO nome que colocamos na query (:data_param)
+        # Passamos o objeto datetime direto, pois o SQL Server já sabe comparar com o campo DATETIME
+        result = conn.execute(query, {"data_param": data_e_horario})
+        return result.mappings().fetchone()
 
 def deletar_consulta(consulta_id):
     db = get_db()
