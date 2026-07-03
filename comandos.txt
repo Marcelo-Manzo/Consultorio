@@ -41,4 +41,6 @@ Para faltantes:
 
 3 = Falta Remarcada (Substituindo o seu antigo status 2).
 
+4 = Notificação Disparada / Em Análise
+
 isso é bom pois deixa o agendamento, falta, remarcação muito mais controlados e com mais abrangências em futuros projetos

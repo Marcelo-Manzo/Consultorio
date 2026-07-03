@@ -91,7 +91,7 @@ def buscar_consulta_Atual(data_e_horario):
         SELECT c.id, p.nome, c.data, c.tratamento 
         FROM Consultas c
         JOIN Pacientes p ON c.paciente_id = p.id
-        WHERE c.data = :data_param AND c.compareceu = 0
+        WHERE c.data = :data_param AND c.compareceu = 0 
     """)
     
     with db as conn:
@@ -156,7 +156,7 @@ def listar_consultas_com_paciente_por_data(data_selecionada):
         FROM Consultas c
         INNER JOIN Pacientes p ON c.paciente_id = p.id
         -- Trocado aqui: CAST converte o DATETIME para o tipo DATE do SQL Server
-        WHERE CAST(c.data AS DATE) = :data AND c.compareceu = 0
+        WHERE CAST(c.data AS DATE) = :data AND (c.compareceu = 0 OR c.compareceu = 1)
         ORDER BY c.data ASC
     """)
     with db as conn:

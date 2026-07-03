@@ -11,6 +11,10 @@ def mostrar(parent):
     def abrir_notificacao_comparecimento(data_e_horario):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
+
+        #==================== MUDANÇA DE ESTADO ====================
+        #muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.
+        marcar_comparecimento(consulta["id"], status=4)
         
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
         if not consulta:
@@ -35,7 +39,9 @@ def mostrar(parent):
         popup.attributes("-topmost", True)
         popup.grab_set()
 
+
         #==================== FUNÇÕES DE AÇÃO ====================
+
         def responder_sim():
             # Status 1 = Compareceu
             marcar_comparecimento(consulta["id"], status=1)
