@@ -1,3 +1,4 @@
+
 import customtkinter as ctk
 from views import pacientes, consultas, agenda_Semanal, faltantes
 from database.models import buscar_consulta_Atual
