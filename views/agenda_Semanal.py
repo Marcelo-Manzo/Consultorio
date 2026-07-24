@@ -222,9 +222,11 @@ def mostrar(parent):
                 resultado_salvar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
-            # Executa a query de INSERT global do banco de dados
-            criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
-            criar_orcamento()
+            # 1. Cria a consulta e salva o ID gerado
+            consulta_id = criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
+
+            # 2. Cria o orçamento usando o ID retornado
+            criar_orcamento(consulta_id, paciente_selecionado["id"], valor, metodo, data_e_horario_final,status = 0)
             
             # Fecha a janela e recarrega a grade da agenda imediatamente
             frame_criar_consulta.destroy()

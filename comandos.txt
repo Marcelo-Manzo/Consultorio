@@ -44,3 +44,12 @@ Para faltantes:
 4 = Notificação Disparada / Em Análise
 
 isso é bom pois deixa o agendamento, falta, remarcação muito mais controlados e com mais abrangências em futuros projetos
+
+3. Convenção dos Status (orcamento) no Código
+Sempre utilize os valores inteiros nas consultas e inserções do backend:
+
+0: Pendente
+
+1: Aprovado
+
+2: Cancelado / Expirado

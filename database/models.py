@@ -1,3 +1,4 @@
+
 from sqlalchemy import text
 from .connection import get_db
 
@@ -37,22 +38,29 @@ def buscar_paciente_por_id(paciente_id):
 
 # ==================== CONSULTAS ====================
 
-def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento,compareceu = 0):
+def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento, compareceu = 0):
     db = get_db()
     query = text("""
         INSERT INTO Consultas (paciente_id, tratamento, data, valor, metodo_pagamento)
+        OUTPUT INSERTED.id
         VALUES (:paciente_id, :tratamento, :data, :valor, :metodo_pagamento)
     """)
     with db as conn:
-        conn.execute(query, {
+        # 1. Atribua o resultado à variável 'result'
+        result = conn.execute(query, {
             "paciente_id": paciente_id,
             "tratamento": treatment,
-            "data": data_e_horario, 
+            "data": data_e_horario,
             "valor": valor,
             "metodo_pagamento": metodo_pagamento,
             "compareceu": compareceu
         })
-        conn.commit()  # CORRIGIDO: Commit garantido na conexão ativa dentro do bloco with
+        
+        # 2. Agora 'result' existe e o .scalar() vai funcionar perfeitamente!
+        consulta_id = result.scalar()
+        #retorna o ID
+        conn.commit()
+        return consulta_id
 
 def buscar_consulta_por_id(consulta_id):
     """
@@ -217,7 +225,7 @@ def listar_tratamentos():
 
 ### orcamentos ####
 
-def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, status="Pendente"):
+def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, status=0):
     db = get_db()
     query = text("""
         INSERT INTO Orcamentos (consulta_id, paciente_id, valor, forma_pagamento, status, data_criacao)
@@ -268,10 +276,10 @@ def obter_ganho_total_mes(mes, ano):
     query = text("""
         SELECT COALESCE(SUM(valor), 0) AS total
         FROM Orcamentos
-        WHERE status = 'Aprovado' 
+        WHERE status = 1 
           AND MONTH(data_criacao) = :mes 
           AND YEAR(data_criacao) = :ano
     """)
     with db as conn:
         result = conn.execute(query, {"mes": mes, "ano": ano})
-        return result.scalar()  # Retorna o valor numérico direto (ex: 3250.00)
+        return result.scalar()
