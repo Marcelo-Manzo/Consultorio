@@ -213,3 +213,65 @@ def listar_tratamentos():
     with db as conn:
         result = conn.execute(query)
         return result.fetchall()
+
+
+### orcamentos ####
+
+def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, status="Pendente"):
+    db = get_db()
+    query = text("""
+        INSERT INTO Orcamentos (consulta_id, paciente_id, valor, forma_pagamento, status, data_criacao)
+        VALUES (:consulta_id, :paciente_id, :valor, :metodo, :status, :data_criacao)
+    """)
+    with db as conn:
+        conn.execute(query, {
+            "consulta_id": consulta_id,
+            "paciente_id": paciente_id,
+            "valor": valor,
+            "metodo": metodo,
+            "status": status,
+            "data_criacao": data_criacao
+        })
+        conn.commit()
+
+def listar_orcamentos_por_mes(mes, ano):
+    db = get_db()
+    query = text("""
+        SELECT 
+            o.id,
+            o.consulta_id,
+            o.paciente_id,
+            p.nome AS paciente_nome,
+            o.valor,
+            o.forma_pagamento,
+            o.status,
+            o.data_criacao
+        FROM Orcamentos o
+        INNER JOIN Pacientes p ON o.paciente_id = p.id
+        WHERE MONTH(o.data_criacao) = :mes AND YEAR(o.data_criacao) = :ano
+        ORDER BY o.data_criacao DESC
+    """)
+    with db as conn:
+        result = conn.execute(query, {"mes": mes, "ano": ano})
+        return result.mappings().fetchall()
+    
+
+def atualizar_status_orcamento(orcamento_id, novo_status):
+    db = get_db()
+    query = text("UPDATE Orcamentos SET status = :status WHERE id = :id")
+    with db as conn:
+        conn.execute(query, {"status": novo_status, "id": orcamento_id})
+        conn.commit()
+
+def obter_ganho_total_mes(mes, ano):
+    db = get_db()
+    query = text("""
+        SELECT COALESCE(SUM(valor), 0) AS total
+        FROM Orcamentos
+        WHERE status = 'Aprovado' 
+          AND MONTH(data_criacao) = :mes 
+          AND YEAR(data_criacao) = :ano
+    """)
+    with db as conn:
+        result = conn.execute(query, {"mes": mes, "ano": ano})
+        return result.scalar()  # Retorna o valor numérico direto (ex: 3250.00)

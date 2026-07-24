@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_nome, deletar_consulta, update_consulta, listar_tratamentos
+from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_nome, deletar_consulta, update_consulta, listar_tratamentos, criar_orcamento
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela
@@ -224,6 +224,7 @@ def mostrar(parent):
 
             # Executa a query de INSERT global do banco de dados
             criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
+            criar_orcamento()
             
             # Fecha a janela e recarrega a grade da agenda imediatamente
             frame_criar_consulta.destroy()
