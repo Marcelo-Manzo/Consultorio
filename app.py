@@ -1,6 +1,6 @@
 
 import customtkinter as ctk
-from views import pacientes, consultas, agenda_Semanal, faltantes
+from views import pacientes, consultas, agenda_Semanal, faltantes, orcamento
 from database.models import buscar_consulta_Atual
 # IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
@@ -53,6 +53,14 @@ class App(ctk.CTk):
             self.sidebar,
             text="Faltantes",
             command=self.mostrar_faltantes,
+            width=180,
+            fg_color = "#0052b5"
+        ).pack(pady=10)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Orcamento",
+            command=self.mostrar_orcamento,
             width=180,
             fg_color = "#0052b5"
         ).pack(pady=10)
@@ -112,6 +120,10 @@ class App(ctk.CTk):
     def mostrar_faltantes(self):
         self.limpar_frame()
         faltantes.mostrar(self.main_frame)
+
+    def mostrar_orcamento(self):
+            self.limpar_frame()
+            orcamento.mostrar(self.main_frame)
 
 if __name__ == "__main__":
     app = App()
