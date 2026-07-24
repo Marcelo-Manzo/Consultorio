@@ -12,13 +12,15 @@ def mostrar(parent):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
 
+        # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
+        if not consulta:
+            print("consulta nao encontrada")
+        
+        print("consulta encontrada")
+
         #==================== MUDANÇA DE ESTADO ====================
         #muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.
         marcar_comparecimento(consulta["id"], status=4)
-        
-        # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
-        if not consulta:
-            return
 
         # 2. Criação da Janela Pop-up (Toplevel)
         popup = ctk.CTkToplevel(parent, fg_color="#1e1f22")
@@ -47,7 +49,7 @@ def mostrar(parent):
             marcar_comparecimento(consulta["id"], status=1)
             popup.destroy()
             # Se você tiver uma função global para recarregar a agenda na tela de fundo, chame-a aqui
-            print(f"Consulta {consulta['id']} marcada como COMPARECEU.")
+            print(f"Consulta id:{consulta['id']} marcada como COMPARECEU.")
 
         def responder_nao():
             # Status 2 = Faltou (vai direto para a aba de faltantes)
@@ -109,6 +111,7 @@ def mostrar(parent):
             text_color="#2ecc71" # Texto verde claro brilhante para sucesso
         )
         btn_sim.pack(side="left", padx=10)
+
 
     # Retorna a função interna caso você precise chamá-la de fora mapeando o relógio
     return abrir_notificacao_comparecimento

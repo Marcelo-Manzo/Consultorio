@@ -37,7 +37,7 @@ def buscar_paciente_por_id(paciente_id):
 
 # ==================== CONSULTAS ====================
 
-def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento):
+def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento,compareceu = 0):
     db = get_db()
     query = text("""
         INSERT INTO Consultas (paciente_id, tratamento, data, valor, metodo_pagamento)
@@ -49,7 +49,8 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
             "tratamento": treatment,
             "data": data_e_horario, 
             "valor": valor,
-            "metodo_pagamento": metodo_pagamento
+            "metodo_pagamento": metodo_pagamento,
+            "compareceu": compareceu
         })
         conn.commit()  # CORRIGIDO: Commit garantido na conexão ativa dentro do bloco with
 
@@ -91,7 +92,7 @@ def buscar_consulta_Atual(data_e_horario):
         SELECT c.id, p.nome, c.data, c.tratamento 
         FROM Consultas c
         JOIN Pacientes p ON c.paciente_id = p.id
-        WHERE c.data = :data_param AND c.compareceu = 0 
+        WHERE c.data = :data_param AND c.compareceu = 0
     """)
     
     with db as conn:

@@ -29,28 +29,32 @@ class App(ctk.CTk):
             self.sidebar,
             text="Pacientes",
             command=self.mostrar_pacientes,
-            width=180
+            width=180,
+            fg_color = "#0052b5"
         ).pack(pady=10)
 
-        ctk.CTkButton(
-            self.sidebar,
-            text="Consultas",
-            command=self.mostrar_consultas,
-            width=180
-        ).pack(pady=10)
+        # ctk.CTkButton(
+        #     self.sidebar,
+        #     text="Consultas",
+        #     command=self.mostrar_consultas,
+        #     width=180,
+        #     fg_color = "#0052b5"
+        # ).pack(pady=10)
         
         ctk.CTkButton(
             self.sidebar,
             text="agenda",
             command=self.mostrar_agenda_semanal,
-            width=180
+            width=180,
+            fg_color = "#0052b5"
         ).pack(pady=10)
         
         ctk.CTkButton(
             self.sidebar,
             text="Faltantes",
             command=self.mostrar_faltantes,
-            width=180
+            width=180,
+            fg_color = "#0052b5"
         ).pack(pady=10)
                 
         # Frame principal onde as telas aparecem
@@ -86,7 +90,7 @@ class App(ctk.CTk):
            self.disparar_popup(consulta_no_bloco["data"])
             
         # Pode rodar a checagem a cada 5 minutos (300000 ms) em vez de 1 minuto!
-        self.after(300000, self.verificar_horarios_consultas)
+        self.after(30000, self.verificar_horarios_consultas)
     
     # ==================== GERENCIAMENTO DE TELAS ====================
     def limpar_frame(self):

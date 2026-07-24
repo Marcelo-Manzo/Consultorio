@@ -15,6 +15,21 @@ def mostrar(parent):
 
     # Mantido estático no topo da função: Carrega uma única vez na memória
     horarios = ['08:00', '08:30', '09:00', '09:30', '10:00', '10:30', '11:00', '11:30','13:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00']
+
+    def obter_bloco_horario_atual():
+        agora = datetime.now()
+        # Se os minutos forem menores que 30, o bloco é '00'. Se forem maiores, o bloco é '30'.
+        minuto_bloco = 0 if agora.minute < 30 else 30
+        
+        # Retorna a data de hoje com a hora atual, mas cravada no bloco (00 ou 30) e SEM segundos
+        return datetime(agora.year, agora.month, agora.day, agora.hour, minuto_bloco, 0)
+
+    def definir_bloco_consulta(consulta):
+        dt = consulta["data"]
+        minuto_bloco = 0 if dt.minute < 30 else 30
+        # Retorna um datetime cravado no bloco de 30 min da consulta
+        return dt.replace(minute=minuto_bloco, second=0, microsecond=0)
+                
     
     # Nova abordagem limpa: atualiza textos e substitui apenas os cards de consultas
     def atualizar_dados_agenda():
@@ -53,10 +68,15 @@ def mostrar(parent):
                         break
                 
                 if consulta_encontrada:
+
                     # ==================================================================
                     # CARD OCUPADO: Existe agendamento no horário
                     # ==================================================================
-                    consulta_frame = ctk.CTkFrame(scroll_dia, fg_color="#212225", border_width=1, border_color="#3a3a3a", corner_radius=8)
+                    if  definir_bloco_consulta(consulta_encontrada) == obter_bloco_horario_atual():
+                        
+                        consulta_frame = ctk.CTkFrame(scroll_dia, fg_color="#212225", border_width=1, border_color="#00ffdd", corner_radius=8)
+                    else:
+                        consulta_frame = ctk.CTkFrame(scroll_dia, fg_color="#212225", border_width=1, border_color="#3a3a3a", corner_radius=8)
                     consulta_frame.pack(fill="x", padx=2, pady=4)
 
                     # Configuração de colunas internas do Card
@@ -116,6 +136,17 @@ def mostrar(parent):
                     # ==================================================================
                     # CARD VAZIO: Horário livre para sua sogra agendar
                     # ==================================================================
+                    
+                    # 1. Monta o objeto datetime deste card vago específico (Data da coluna + Hora da iteração)
+                    horas, minutos = map(int, hora_teste.split(':'))
+                    slot_datetime = datetime(data_dia.year, data_dia.month, data_dia.day, horas, minutos, 0)
+
+                    # 2. Verifica se este slot vago corresponde ao bloco do horário de AGORA
+                    eh_horario_atual = (slot_datetime == obter_bloco_horario_atual())
+
+                    # 3. Define a cor da borda com base no resultado (Destaque #00ffdd ou neutro #2b2b2b)
+                    cor_borda = "#00ffdd" if eh_horario_atual else "#2b2b2b"
+
                     btn_vazio = ctk.CTkButton(
                         scroll_dia,
                         text=f"➕  {hora_teste}",
@@ -124,7 +155,7 @@ def mostrar(parent):
                         fg_color="#1a1b1e",
                         hover_color="#232429",
                         border_width=1,
-                        border_color="#2b2b2b",
+                        border_color=cor_borda,
                         corner_radius=6,
                         height=35,
                         # Passa a data da coluna e a hora do bloco para preencher o formulário futuro
