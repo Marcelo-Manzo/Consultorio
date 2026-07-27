@@ -24,10 +24,13 @@ class App(ctk.CTk):
         
         self.titulo = ctk.CTkLabel(self.sidebar, text="Menu", font=("Arial", 20, "bold"))
         self.titulo.pack(pady=20)
+
+        fonte_clean = ("Segoe UI", 14, "bold")
         
         ctk.CTkButton(
             self.sidebar,
             text="Pacientes",
+            font=fonte_clean,
             command=self.mostrar_pacientes,
             width=180,
             fg_color = "#0052b5"
@@ -44,6 +47,7 @@ class App(ctk.CTk):
         ctk.CTkButton(
             self.sidebar,
             text="agenda",
+            font=fonte_clean,
             command=self.mostrar_agenda_semanal,
             width=180,
             fg_color = "#0052b5"
@@ -52,6 +56,7 @@ class App(ctk.CTk):
         ctk.CTkButton(
             self.sidebar,
             text="Faltantes",
+            font=fonte_clean,
             command=self.mostrar_faltantes,
             width=180,
             fg_color = "#0052b5"
@@ -59,7 +64,8 @@ class App(ctk.CTk):
 
         ctk.CTkButton(
             self.sidebar,
-            text="Orcamento",
+            text="Orçamento",
+            font=fonte_clean,
             command=self.mostrar_orcamento,
             width=180,
             fg_color = "#0052b5"
