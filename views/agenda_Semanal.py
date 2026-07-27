@@ -277,9 +277,17 @@ def mostrar(parent):
         # Campo: Tratamento
         tratamentos_db = listar_tratamentos()
         tratamentos_lista = [t.nome for t in tratamentos_db]
+        def ao_selecionar_tratamento(tratamento_selecionado):
+            valor = 0
+            for t in tratamentos_db:
+                if str(t.nome) == str(tratamento_selecionado):
+                    valor = t.valor
+                    break
+            valor_entry.delete(0,"end")
+            valor_entry.insert(0, f"{float(valor):.2f}")
         
         ctk.CTkLabel(frame_criar_consulta, text="Tratamento:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w", padx=25, pady=(8, 0))
-        tratamento_dropdown = ctk.CTkComboBox(frame_criar_consulta, values=tratamentos_lista, width=350, fg_color="#2b2b2b", button_color="#3a3a3a")
+        tratamento_dropdown = ctk.CTkComboBox(frame_criar_consulta, values=tratamentos_lista, width=350, fg_color="#2b2b2b", button_color="#3a3a3a",command=ao_selecionar_tratamento)
         tratamento_dropdown.pack(pady=2)
 
         # ------------------------------------------------------------------
