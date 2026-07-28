@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_nome, deletar_consulta, update_consulta, listar_tratamentos, criar_orcamento
+from database.models import criar_consulta, listar_consultas_com_paciente_por_data, buscar_paciente_por_nome, deletar_consulta, update_consulta, listar_tratamentos, criar_orcamento, update_orcamento_por_consulta
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela
@@ -377,8 +377,17 @@ def mostrar(parent):
 
         tratamentos_db = listar_tratamentos()
         tratamentos_lista = [t.nome for t in tratamentos_db]
+        def ao_selecionar_tratamento(tratamento_selecionado):
+            valor = 0
+            for t in tratamentos_db:
+                if str(t.nome) == str(tratamento_selecionado):
+                    valor = t.valor
+                    break
+            valor_entry.delete(0,"end")
+            valor_entry.insert(0, f"{float(valor):.2f}")
         
-        tratamento_dropdown = ctk.CTkComboBox(frame_editar_consulta, values=tratamentos_lista, width=280, fg_color="#2b2b2b", button_color="#3a3a3a")
+        
+        tratamento_dropdown = ctk.CTkComboBox(frame_editar_consulta, values=tratamentos_lista, width=280, fg_color="#2b2b2b", button_color="#3a3a3a",command=ao_selecionar_tratamento)
         tratamento_dropdown.pack(pady=6)
         # Adaptado para ler da chave do dicionário do JOIN ['tratamento']
         tratamento_dropdown.set(consulta['tratamento'])
@@ -424,6 +433,9 @@ def mostrar(parent):
             # Atualiza usando a chave de ID correta da consulta
             update_consulta(consulta['consulta_id'], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
             frame_editar_consulta.destroy()
+
+            update_orcamento_por_consulta(consulta['consulta_id'], consulta['paciente_id'],novo_valor,novo_metodo, status = 0)
+
 
             # Atualiza os dados sem quebrar a renderização
             atualizar_dados_agenda()

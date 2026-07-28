@@ -242,6 +242,28 @@ def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, statu
         })
         conn.commit()
 
+def update_orcamento_por_consulta(consulta_id, paciente_id, valor, forma_pagamento, status=0):
+    db = get_db()
+    query = text("""
+        UPDATE Orcamentos 
+        SET paciente_id = :paciente_id,
+            valor = :valor,
+            forma_pagamento = :forma_pagamento,
+            status = :status
+        WHERE consulta_id = :consulta_id
+    """)
+    
+    with db as conn:
+        conn.execute(query, {
+            "consulta_id": consulta_id,
+            "paciente_id": paciente_id,
+            "valor": valor,
+            "forma_pagamento": forma_pagamento,
+            "status": status
+        })
+        conn.commit()
+    print(f"Orçamento referente à consulta {consulta_id} atualizado!")
+
 def listar_orcamentos_por_mes(mes, ano):
     db = get_db()
     query = text("""
