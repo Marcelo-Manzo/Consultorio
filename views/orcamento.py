@@ -1,13 +1,13 @@
-import customtkinter as ctk
-from datetime import datetime, timedelta
-from datetime import datetime, timedelta
 import calendar
+from datetime import datetime
+import customtkinter as ctk
 from database.models import lista_orcamentos_por_status_data
 
 controle_mensal = {"deslocamento": 0}
 
+
 def mostrar(parent):
-    # Limpa a janela/container atual antes de renderizar
+    # Limpa o container atual antes de renderizar
     for widget in parent.winfo_children():
         widget.destroy()
 
@@ -21,46 +21,45 @@ def mostrar(parent):
 
     def on_aprovar_click(orcamento_id):
         """Atualiza o status do orçamento para Aprovado (1) no banco de dados."""
-        pass
+        print(f"Aprovar orçamento: {orcamento_id}")
 
     def on_cancelar_click(orcamento_id):
         """Atualiza o status do orçamento para Cancelado (2) no banco de dados."""
-        pass
-
+        print(f"Cancelar orçamento: {orcamento_id}")
 
     def atualizar_orcamento():
-        # Layout Principal do Container
+        # Layout Principal
         parent.grid_rowconfigure(0, weight=0)  # Cards
-        parent.grid_rowconfigure(1, weight=0)  # Filtros e Ações
+        parent.grid_rowconfigure(1, weight=0)  # Filtros
         parent.grid_rowconfigure(2, weight=1)  # Tabela
         parent.grid_columnconfigure(0, weight=1)
 
         # =========================================================================
-        # 1. CARDS DE RESUMO FINANCEIRO (ESTILO CLEAN)
+        # 1. CARDS DE RESUMO FINANCEIRO
         # =========================================================================
         frame_cards = ctk.CTkFrame(parent, fg_color="transparent")
         frame_cards.grid(row=0, column=0, padx=20, pady=(20, 10), sticky="ew")
         frame_cards.grid_columnconfigure((0, 1, 2), weight=1, uniform="card")
 
         dados_cards = [
-            {"titulo": "PENDENTES", "qtd": "0", "valor": "R$ 0,00", "cor": "#E6A100", "bg_subtil": "#2a2415"},
-            {"titulo": "APROVADOS", "qtd": "0", "valor": "R$ 0,00", "cor": "#2FA572", "bg_subtil": "#162820"},
-            {"titulo": "CANCELADOS", "qtd": "0", "valor": "R$ 0,00", "cor": "#EA4335", "bg_subtil": "#2b1919"},
+            {"status_id": 0, "titulo": "PENDENTES", "cor": "#E6A100", "bg_subtil": "#2a2415"},
+            {"status_id": 1, "titulo": "APROVADOS", "cor": "#2FA572", "bg_subtil": "#162820"},
+            {"status_id": 2, "titulo": "CANCELADOS", "cor": "#EA4335", "bg_subtil": "#2b1919"},
         ]
 
-        labels_valores_cards = []
+        dict_cards_ui = {}
 
         for col, card in enumerate(dados_cards):
+            status_id = card["status_id"]
             fundo_card = ctk.CTkFrame(
-                frame_cards, 
-                fg_color="#1e1f22", 
-                border_width=1, 
-                border_color="#2b2d31", 
-                corner_radius=10
+                frame_cards,
+                fg_color="#1e1f22",
+                border_width=1,
+                border_color="#2b2d31",
+                corner_radius=10,
             )
             fundo_card.grid(row=0, column=col, padx=6, pady=5, sticky="ew")
 
-            # Barra superior colorida sutil
             ctk.CTkFrame(fundo_card, fg_color=card["cor"], height=3, corner_radius=0).pack(fill="x", side="top")
 
             conteudo = ctk.CTkFrame(fundo_card, fg_color="transparent")
@@ -70,38 +69,38 @@ def mostrar(parent):
             header_card.pack(fill="x")
 
             ctk.CTkLabel(
-                header_card, 
-                text=card["titulo"], 
-                font=("Segoe UI", 11, "bold"), 
-                text_color="#949ba4"
+                header_card,
+                text=card["titulo"],
+                font=("Segoe UI", 11, "bold"),
+                text_color="#949ba4",
             ).pack(side="left")
 
-            ctk.CTkLabel(
-                header_card, 
-                text=f" {card['qtd']} ", 
-                font=("Segoe UI", 10, "bold"), 
-                fg_color=card["bg_subtil"], 
+            lbl_qtd = ctk.CTkLabel(
+                header_card,
+                text=" 0 ",
+                font=("Segoe UI", 10, "bold"),
+                fg_color=card["bg_subtil"],
                 text_color=card["cor"],
-                corner_radius=4
-            ).pack(side="right")
+                corner_radius=4,
+            )
+            lbl_qtd.pack(side="right")
 
             lbl_val = ctk.CTkLabel(
-                conteudo, 
-                text=card["valor"], 
-                font=("Segoe UI", 22, "bold"), 
-                text_color="#ffffff"
+                conteudo,
+                text="R$ 0,00",
+                font=("Segoe UI", 22, "bold"),
+                text_color="#ffffff",
             )
             lbl_val.pack(anchor="w", pady=(8, 0))
-            labels_valores_cards.append(lbl_val)
+
+            dict_cards_ui[status_id] = {"qtd": lbl_qtd, "valor": lbl_val}
 
         # =========================================================================
-        # 2. BARRA DE FILTROS E AÇÕES (ORGANIZADA)
+        # 2. BARRA DE FILTROS E AÇÕES
         # =========================================================================
-
         frame_filtros = ctk.CTkFrame(parent, fg_color="transparent")
         frame_filtros.grid(row=1, column=0, padx=20, pady=10, sticky="ew")
 
-        # Esquerda: Filtros de Status e Datas
         subframe_esquerda = ctk.CTkFrame(frame_filtros, fg_color="transparent")
         subframe_esquerda.pack(side="left", fill="x")
 
@@ -109,9 +108,9 @@ def mostrar(parent):
         col_status.pack(side="left", padx=(0, 10))
         ctk.CTkLabel(col_status, text="Status:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
         combo_status = ctk.CTkComboBox(
-            col_status, 
+            col_status,
             values=["Todos", "Pendente", "Aprovado", "Cancelado"],
-            width=140
+            width=140,
         )
         combo_status.pack(anchor="w")
 
@@ -128,92 +127,152 @@ def mostrar(parent):
         entry_data_fim.pack(anchor="w")
 
         btn_filtrar = ctk.CTkButton(
-            subframe_esquerda, 
-            text="Filtrar", 
-            width=90, 
-            command=lambda: on_filtrar_click()
+            subframe_esquerda,
+            text="Filtrar",
+            width=90,
+            command=lambda: on_filtrar_click(),
         )
         btn_filtrar.pack(side="left", padx=(5, 0), pady=(20, 0))
 
-        # Direita: Botões de Exportação
+        # Botões Direita
         subframe_direita = ctk.CTkFrame(frame_filtros, fg_color="transparent")
         subframe_direita.pack(side="right", fill="x")
 
         btn_exportar_excel = ctk.CTkButton(
-            subframe_direita, 
-            text="Exportar Excel", 
-            fg_color="#2FA572", 
+            subframe_direita,
+            text="Exportar Excel",
+            fg_color="#2FA572",
             hover_color="#207B53",
             width=120,
-            command=lambda: exportar_em_excel()
+            command=exportar_em_excel,
         )
         btn_exportar_excel.pack(side="right", padx=(5, 0), pady=(20, 0))
 
         btn_exportar_pdf = ctk.CTkButton(
-            subframe_direita, 
-            text="Gerar PDF", 
-            fg_color="#2FA572", 
+            subframe_direita,
+            text="Gerar PDF",
+            fg_color="#2FA572",
             hover_color="#207B53",
             width=100,
-            command=lambda: exportar_em_pdf()
+            command=exportar_em_pdf,
         )
         btn_exportar_pdf.pack(side="right", padx=5, pady=(20, 0))
 
-        #================================
-        # PREENCHENDO A DATA INICIAl DO MES
-
+        # Preenchimento Padrão de Datas
         hoje = datetime.now()
-        # Gera a string "01/MM/AAAA" do mês atual
-        primeiro_dia_str = datetime.now().replace(day=1).strftime("%d/%m/%Y")
-
-        # Insere por padrão no input de data inicial da sua tela
-        entry_data_inicio.delete(0, "end")
-        entry_data_inicio.insert(0, primeiro_dia_str)
-
-        #===============================
-        # PREENCHENDO A DATA FINAL DO MES
-
-        # Primeiro dia: 01/MM/AAAA
-        dt_fim_str = hoje.replace(day=1).strftime("%d/%m/%Y")
-
-        # Último dia: DD/MM/AAAA
+        primeiro_dia_str = hoje.replace(day=1).strftime("%d/%m/%Y")
         _, ultimo_dia = calendar.monthrange(hoje.year, hoje.month)
         dt_fim_str = hoje.replace(day=ultimo_dia).strftime("%d/%m/%Y")
 
-        # Insere nos inputs da tela
-
-        entry_data_fim.delete(0, "end")
+        entry_data_inicio.insert(0, primeiro_dia_str)
         entry_data_fim.insert(0, dt_fim_str)
 
         # =========================================================================
-        # LÓGICA DE FILTRAGEM
+        # 3. TABELA DE LISTAGEM DE ORÇAMENTOS
         # =========================================================================
-        def on_filtrar_click():
+        frame_tabela = ctk.CTkScrollableFrame(parent, fg_color="#141517", corner_radius=10)
+        frame_tabela.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="nsew")
+
+        headers = ["ID", "Consulta ID", "Paciente", "Valor", "Data", "Status", "Ações"]
+        for col, text in enumerate(headers):
+            lbl = ctk.CTkLabel(frame_tabela, text=text, font=("Segoe UI", 11, "bold"), text_color="#8d9c93")
+            lbl.grid(row=0, column=col, padx=12, pady=10, sticky="w")
+
+        # =========================================================================
+        # FUNÇÕES DE LÓGICA E ATUALIZAÇÃO
+        # =========================================================================
+        def Helper_get_attr(item, atributo):
+            """Lida dinamicamente se o retorno do SQL for Dict ou Objeto/Row."""
+            if isinstance(item, dict):
+                return item.get(atributo)
+            return getattr(item, atributo, None)
+
+        def atualizar_cards_resumo(lista_orcamentos):
+            totais = {
+                0: {"qtd": 0, "valor": 0.0},
+                1: {"qtd": 0, "valor": 0.0},
+                2: {"qtd": 0, "valor": 0.0},
+            }
+
+            for item in lista_orcamentos:
+                #funciona tantto com dicionario quanto com object
+                st = Helper_get_attr(item, "status")
+                vl = float(Helper_get_attr(item, "valor") or 0)
+                if st in totais:
+                    totais[st]["qtd"] += 1
+                    totais[st]["valor"] += vl
+
+
+            # nao faco ideia do que acontece aqui
+            for st_id, data in totais.items():
+                if st_id in dict_cards_ui:
+                    val_fmt = f"R$ {data['valor']:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                    dict_cards_ui[st_id]["qtd"].configure(text=f" {data['qtd']} ")
+                    dict_cards_ui[st_id]["valor"].configure(text=val_fmt)
+
+        def renderizar_tabela(lista_orcamentos):
             for widget in frame_tabela.winfo_children():
                 if int(widget.grid_info()["row"]) > 0:
                     widget.destroy()
-            mapa_status = {
-                "Todos": None,
-                "Pendente": 0,
-                "Aprovado": 1,
-                "Cancelado": 2
-            }
-            
-            texto_selecionado = combo_status.get()
-            # Pega o valor correspondente (se não achar, assume None)
-            status_id = mapa_status.get(texto_selecionado, None)
-            
-            # Agora status_id será 0, 1, 2 ou None
-            print(f"Status para o SQL: {status_id}")
 
-            print(f"status = {status_id}")
+            for index, o in enumerate(lista_orcamentos, start=1):
+                o_id = Helper_get_attr(o, "id")
+                consulta_id = Helper_get_attr(o, "consulta_id")
+                paciente_nome = Helper_get_attr(o, "paciente_nome")
+                valor = float(Helper_get_attr(o, "valor") or 0)
+                data_criacao = Helper_get_attr(o, "data_criacao")
+                status = Helper_get_attr(o, "status")
+
+                # Grid das Colunas
+                ctk.CTkLabel(frame_tabela, text=str(o_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=0, padx=12, pady=6, sticky="w")
+                ctk.CTkLabel(frame_tabela, text=str(consulta_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=1, padx=12, pady=6, sticky="w")
+                ctk.CTkLabel(frame_tabela, text=str(paciente_nome), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=2, padx=12, pady=6, sticky="w")
+
+                val_str = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+                ctk.CTkLabel(frame_tabela, text=val_str, font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=3, padx=12, pady=6, sticky="w")
+
+                dt_fmt = data_criacao.strftime("%d/%m/%Y %H:%M") if hasattr(data_criacao, "strftime") else str(data_criacao)[:16]
+                ctk.CTkLabel(frame_tabela, text=dt_fmt, font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=4, padx=12, pady=6, sticky="w")
+
+                status_map = {0: "Pendente", 1: "Aprovado", 2: "Cancelado"}
+                ctk.CTkLabel(frame_tabela, text=status_map.get(status, str(status)), font=("Segoe UI", 12, "bold"), text_color="#cfd0d4").grid(row=index, column=5, padx=12, pady=6, sticky="w")
+
+                # Botões de Ação na Tabela (Corrigidos para aceitar id direto)
+                frame_acoes = ctk.CTkFrame(frame_tabela, fg_color="transparent")
+                frame_acoes.grid(row=index, column=6, padx=12, pady=8, sticky="w")
+
+                btn_aprovar = ctk.CTkButton(
+                    frame_acoes,
+                    text="✓",
+                    width=30,
+                    height=24,
+                    fg_color="#12331f",
+                    hover_color="#1e4d31",
+                    text_color="#4ade80",
+                    command=lambda item_id=o_id: on_aprovar_click(item_id),
+                )
+                btn_aprovar.pack(side="left", padx=2)
+
+                btn_cancelar = ctk.CTkButton(
+                    frame_acoes,
+                    text="✕",
+                    width=30,
+                    height=24,
+                    fg_color="#381919",
+                    hover_color="#592929",
+                    text_color="#f87171",
+                    command=lambda item_id=o_id: on_cancelar_click(item_id),
+                )
+                btn_cancelar.pack(side="left", padx=2)
+
+        def on_filtrar_click():
+            mapa_status = {"Todos": None, "Pendente": 0, "Aprovado": 1, "Cancelado": 2}
+            status_id = mapa_status.get(combo_status.get(), None)
 
             dt_inicio_str = entry_data_inicio.get().strip()
             dt_fim_str = entry_data_fim.get().strip()
 
-            dt_inicio = None
-            dt_fim = None
-
+            dt_inicio, dt_fim = None, None
             try:
                 if dt_inicio_str:
                     dt_inicio = datetime.strptime(dt_inicio_str, "%d/%m/%Y")
@@ -224,114 +283,10 @@ def mostrar(parent):
                 return
 
             orcamentos = lista_orcamentos_por_status_data(status_id, dt_inicio, dt_fim)
-            for index, o in enumerate(orcamentos, start=1):
-    
-                # Coluna 0 - ID
-                ctk.CTkLabel(
-                    frame_tabela, text=str(o.id), font=("Segoe UI", 12), text_color="#cfd0d4"
-                ).grid(row=index, column=0, padx=12, pady=6, sticky="w")
+            renderizar_tabela(orcamentos)
+            atualizar_cards_resumo(orcamentos)
 
-                # Coluna 1 - Consulta ID
-                ctk.CTkLabel(
-                    frame_tabela, text=str(o.consulta_id), font=("Segoe UI", 12), text_color="#cfd0d4"
-                ).grid(row=index, column=1, padx=12, pady=6, sticky="w")
-
-                # Coluna 2 - Paciente (Nome ou ID)
-                ctk.CTkLabel(
-                    frame_tabela, text=str(o.paciente_nome), font=("Segoe UI", 12), text_color="#cfd0d4"
-                ).grid(row=index, column=2, padx=12, pady=6, sticky="w")
-
-                # Coluna 3 - Valor (formatado em R$)
-                ctk.CTkLabel(
-                    frame_tabela, text=f"R$ {float(o.valor):,.2f}".replace(",", "X").replace(".", ",").replace("X", "."), 
-                    font=("Segoe UI", 12), text_color="#cfd0d4"
-                ).grid(row=index, column=3, padx=12, pady=6, sticky="w")
-
-                # Coluna 4 - Data
-                data_str = o.data_criacao.strftime("%d/%m/%Y %H:%M") if hasattr(o.data_criacao, "strftime") else str(o.data_criacao)[:16]
-                ctk.CTkLabel(
-                    frame_tabela, text=data_str, font=("Segoe UI", 12), text_color="#cfd0d4"
-                ).grid(row=index, column=4, padx=12, pady=6, sticky="w")
-
-                # Coluna 5 - Status (Texto em vez de número)
-                status_map = {0: "Pendente", 1: "Aprovado", 2: "Cancelado"}
-                status_texto = status_map.get(o.status, str(o.status))
-                
-                ctk.CTkLabel(
-                    frame_tabela, text=status_texto, font=("Segoe UI", 12, "bold"), text_color="#cfd0d4"
-                ).grid(row=index, column=5, padx=12, pady=6, sticky="w")
-            
-
-            print(f"Filtrando -> Status: {status_id} | De: {dt_inicio} | Até: {dt_fim}")
-
-        # =========================================================================
-        # 3. TABELA DE LISTAGEM DE ORÇAMENTOS
-        # =========================================================================
-
-        frame_tabela = ctk.CTkScrollableFrame(parent, fg_color="#141517", corner_radius=10)
-        frame_tabela.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="nsew")
-
-        # Cabeçalho da Tabela Clean
-        headers = ["ID", "Consulta ID", "Paciente", "Valor", "Data", "Status", "Ações"]
-        for col, text in enumerate(headers):
-            lbl = ctk.CTkLabel(frame_tabela, text=text, font=("Segoe UI", 11, "bold"), text_color="#8d9c93")
-            lbl.grid(row=0, column=col, padx=12, pady=10, sticky="w")
-
-
-        # =========================================================================
-        # FUNÇÕES INTERNAS E EVENTOS
-        # =========================================================================
-        def atualizar_cards(pendente_val, aprovado_val, cancelado_val):
-            labels_valores_cards[0].configure(text=f"R$ {pendente_val:.2f}")
-            labels_valores_cards[1].configure(text=f"R$ {aprovado_val:.2f}")
-            labels_valores_cards[2].configure(text=f"R$ {cancelado_val:.2f}")
-
-        def renderizar_tabela(lista_orcamentos):
-            for widget in frame_tabela.winfo_children():
-                if int(widget.grid_info()["row"]) > 0:
-                    widget.destroy()
-
-            for index, item in enumerate(lista_orcamentos, start=1):
-                ctk.CTkLabel(frame_tabela, text=str(item['id']), font=("Segoe UI", 11)).grid(row=index, column=0, padx=12, pady=8, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=str(item['consulta_id']), font=("Segoe UI", 11)).grid(row=index, column=1, padx=12, pady=8, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=item['paciente_nome'], font=("Segoe UI", 11, "bold")).grid(row=index, column=2, padx=12, pady=8, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=f"R$ {item['valor']:.2f}", font=("Segoe UI", 11)).grid(row=index, column=3, padx=12, pady=8, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=str(item['data_criacao']), font=("Segoe UI", 11)).grid(row=index, column=4, padx=12, pady=8, sticky="w")
-
-                # Badge de Status (Pílula)
-                status_code = item['status']
-                mapa_status = {
-                    0: {"texto": "Pendente", "cor": "#E6A100", "bg": "#33270d"},
-                    1: {"texto": "Aprovado", "cor": "#4ade80", "bg": "#12331f"},
-                    2: {"texto": "Cancelado", "cor": "#f87171", "bg": "#381919"}
-                }
-                info_status = mapa_status.get(status_code, {"texto": "Desconhecido", "cor": "#888", "bg": "#222"})
-
-                badge = ctk.CTkLabel(
-                    frame_tabela,
-                    text=f"  {info_status['texto']}  ",
-                    font=("Segoe UI", 10, "bold"),
-                    text_color=info_status["cor"],
-                    fg_color=info_status["bg"],
-                    corner_radius=10,
-                    height=20
-                )
-                badge.grid(row=index, column=5, padx=12, pady=8, sticky="w")
-
-                # Botões de Ação na Tabela
-                frame_acoes = ctk.CTkFrame(frame_tabela, fg_color="transparent")
-                frame_acoes.grid(row=index, column=6, padx=12, pady=8, sticky="w")
-
-                btn_aprovar = ctk.CTkButton(
-                    frame_acoes, text="✓", width=30, height=24, fg_color="#12331f", hover_color="#1e4d31", text_color="#4ade80",
-                    command=lambda id=item['id']: on_aprovar_click(id)
-                )
-                btn_aprovar.pack(side="left", padx=2)
-
-                btn_cancelar = ctk.CTkButton(
-                    frame_acoes, text="✕", width=30, height=24, fg_color="#381919", hover_color="#592929", text_color="#f87171",
-                    command=lambda id=item['id']: on_cancelar_click(id)
-                )
-                btn_cancelar.pack(side="left", padx=2)
+        # Carga inicial ao abrir a tela
+        on_filtrar_click()
 
     atualizar_orcamento()
