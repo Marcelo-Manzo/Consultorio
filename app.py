@@ -52,6 +52,15 @@ class App(ctk.CTk):
             width=180,
             fg_color = "#0052b5"
         ).pack(pady=10)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Consultas",
+            font=fonte_clean,
+            command=self.mostrar_consultas,
+            width=180,
+            fg_color = "#0052b5"
+        ).pack(pady=10)
         
         ctk.CTkButton(
             self.sidebar,
@@ -64,7 +73,7 @@ class App(ctk.CTk):
 
         ctk.CTkButton(
             self.sidebar,
-            text="Orçamento",
+            text="Contabilidade",
             font=fonte_clean,
             command=self.mostrar_orcamento,
             width=180,
@@ -110,6 +119,10 @@ class App(ctk.CTk):
     def limpar_frame(self):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
+
+    def mostrar_consultas(self):
+        self.limpar_frame()
+        consultas.mostrar(self.main_frame)
             
     def mostrar_pacientes(self):
         self.limpar_frame()

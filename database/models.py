@@ -305,3 +305,55 @@ def obter_ganho_total_mes(mes, ano):
     with db as conn:
         result = conn.execute(query, {"mes": mes, "ano": ano})
         return result.scalar()
+
+def lista_orcamentos_por_status_data(status, data_inicio, data_fim):
+    """
+    Busca orçamentos filtrando por status e intervalo de datas.
+
+    :param status: Inteiro (0, 1, 2) ou None/String "Todos" para buscar todos os status.
+    :param data_inicio: Data inicial no formato 'YYYY-MM-DD' ou objeto date/datetime.
+    :param data_fim: Data final no formato 'YYYY-MM-DD' ou objeto date/datetime.
+    :return: Lista de registros contendo os dados do orçamento e o nome do paciente.
+    """
+    db = get_db()
+    
+    # Construção dinâmica do WHERE para suportar filtros opcionais
+    condicoes = ["1=1"]
+    params = {}
+
+    # Filtro de Status (Apenas aplica se não for 'Todos' ou None)
+    if status is not None and str(status).isdigit():
+        condicoes.append("o.status = :status")
+        params["status"] = int(status)
+
+    # Filtro por Intervalo de Data (Inclusivo: >= e <=)
+    if data_inicio:
+        condicoes.append("CAST(o.data_criacao AS DATE) >= :data_inicio")
+        params["data_inicio"] = data_inicio
+
+    if data_fim:
+        condicoes.append("CAST(o.data_criacao AS DATE) <= :data_fim")
+        params["data_fim"] = data_fim
+
+    where_clause = " AND ".join(condicoes)
+
+    query = text(f"""
+        SELECT 
+            o.id,
+            o.consulta_id,
+            o.paciente_id,
+            p.nome AS paciente_nome,
+            o.valor,
+            o.forma_pagamento,
+            o.status,
+            o.data_criacao
+        FROM Orcamentos o
+        INNER JOIN Pacientes p ON o.paciente_id = p.id 
+        WHERE {where_clause}
+        ORDER BY o.data_criacao DESC
+    """)
+
+    with db as conn:
+        result = conn.execute(query, params)
+        # Retorna uma lista de dicionários para fácil leitura no CustomTkinter
+        return result.fetchall()
