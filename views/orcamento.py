@@ -110,7 +110,7 @@ def mostrar(parent):
         ctk.CTkLabel(col_status, text="Status:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
         combo_status = ctk.CTkComboBox(
             col_status, 
-            values=["Todos", "0 - Pendente", "1 - Aprovado", "2 - Cancelado"],
+            values=["Todos", "Pendente", "Aprovado", "Cancelado"],
             width=140
         )
         combo_status.pack(anchor="w")
@@ -192,12 +192,21 @@ def mostrar(parent):
             for widget in frame_tabela.winfo_children():
                 if int(widget.grid_info()["row"]) > 0:
                     widget.destroy()
-            status_selecionado = str(combo_status.get())
-            status = ""
-            if status_selecionado[0] != "T":
-                status = status_selecionado[0]
+            mapa_status = {
+                "Todos": None,
+                "Pendente": 0,
+                "Aprovado": 1,
+                "Cancelado": 2
+            }
+            
+            texto_selecionado = combo_status.get()
+            # Pega o valor correspondente (se não achar, assume None)
+            status_id = mapa_status.get(texto_selecionado, None)
+            
+            # Agora status_id será 0, 1, 2 ou None
+            print(f"Status para o SQL: {status_id}")
 
-            print(f"status = {status}")
+            print(f"status = {status_id}")
 
             dt_inicio_str = entry_data_inicio.get().strip()
             dt_fim_str = entry_data_fim.get().strip()
@@ -214,7 +223,7 @@ def mostrar(parent):
                 print("Formato de data inválido. Use DD/MM/AAAA")
                 return
 
-            orcamentos = lista_orcamentos_por_status_data(status, dt_inicio, dt_fim)
+            orcamentos = lista_orcamentos_por_status_data(status_id, dt_inicio, dt_fim)
             for index, o in enumerate(orcamentos, start=1):
     
                 # Coluna 0 - ID
@@ -229,7 +238,7 @@ def mostrar(parent):
 
                 # Coluna 2 - Paciente (Nome ou ID)
                 ctk.CTkLabel(
-                    frame_tabela, text=str(o.paciente_id), font=("Segoe UI", 12), text_color="#cfd0d4"
+                    frame_tabela, text=str(o.paciente_nome), font=("Segoe UI", 12), text_color="#cfd0d4"
                 ).grid(row=index, column=2, padx=12, pady=6, sticky="w")
 
                 # Coluna 3 - Valor (formatado em R$)
@@ -253,7 +262,7 @@ def mostrar(parent):
                 ).grid(row=index, column=5, padx=12, pady=6, sticky="w")
             
 
-            print(f"Filtrando -> Status: {status_selecionado} | De: {dt_inicio} | Até: {dt_fim}")
+            print(f"Filtrando -> Status: {status_id} | De: {dt_inicio} | Até: {dt_fim}")
 
         # =========================================================================
         # 3. TABELA DE LISTAGEM DE ORÇAMENTOS
