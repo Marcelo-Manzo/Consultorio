@@ -343,6 +343,7 @@ def lista_orcamentos_por_status_data(status, data_inicio, data_fim):
             o.consulta_id,
             o.paciente_id,
             p.nome AS paciente_nome,
+            p.cpf as paciente_cpf,
             o.valor,
             o.forma_pagamento,
             o.status,
