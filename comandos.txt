@@ -1,5 +1,6 @@
 iniciar ambiente virtual: .venv\Scripts\activate
 pip install customtkinter
+pip install reportlab  
 iniciar: python app.py
 
 commit

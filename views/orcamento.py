@@ -2,9 +2,90 @@ import calendar
 from datetime import datetime
 import customtkinter as ctk
 from database.models import lista_orcamentos_por_status_data, atualizar_status_orcamento
+import os
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+import os
+from tkinter import filedialog, messagebox
 
 controle_mensal = {"deslocamento": 0}
 
+def Helper_get_attr(item, atributo):
+    """Lida dinamicamente se o retorno do SQL for Dict ou Objeto/Row."""
+    if isinstance(item, dict):
+        return item.get(atributo)
+    return getattr(item, atributo, None)
+
+def gerar_pdf_orcamentos(lista_orcamentos, caminho_saida="relatorio_orcamentos.pdf"):
+    doc = SimpleDocTemplate(
+        caminho_saida,
+        pagesize=letter,
+        rightMargin=20,
+        leftMargin=20,
+        topMargin=20,
+        bottomMargin=20
+    )
+    elements = []
+    styles = getSampleStyleSheet()
+
+    # Título
+    titulo_style = ParagraphStyle(
+        'TituloStyle',
+        parent=styles['Heading1'],
+        fontSize=16,
+        leading=20,
+        textColor=colors.HexColor("#1e1f22"),
+        spaceAfter=10
+    )
+    elements.append(Paragraph("Relatório Financeiro de Orçamentos", titulo_style))
+
+    data_emissao = datetime.now().strftime("%d/%m/%Y às %H:%M")
+    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=9, textColor=colors.gray)
+    elements.append(Paragraph(f"Emitido em: {data_emissao}", sub_style))
+    elements.append(Spacer(1, 12))
+
+    # Cabeçalho (7 colunas)
+    dados_tabela = [["ID", "Consulta", "Paciente", "CPF", "Valor", "Data", "Status"]]
+    status_map = {0: "Pendente", 1: "Aprovado", 2: "Cancelado"}
+
+    # Preenchendo linhas
+    for o in lista_orcamentos:
+        o_id = Helper_get_attr(o, "id")
+        consulta_id = Helper_get_attr(o, "consulta_id")
+        paciente = Helper_get_attr(o, "paciente_nome") or "N/A"
+        cpf = Helper_get_attr(o, "paciente_cpf") or "N/A"
+        valor = float(Helper_get_attr(o, "valor") or 0)
+        val_fmt = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+        dt_criacao = Helper_get_attr(o, "data_criacao")
+        dt_fmt = dt_criacao.strftime("%d/%m/%Y") if hasattr(dt_criacao, "strftime") else str(dt_criacao)[:10]
+
+        st_id = Helper_get_attr(o, "status")
+        st_nome = status_map.get(st_id, str(st_id))
+
+        dados_tabela.append([str(o_id), str(consulta_id), paciente, cpf, val_fmt, dt_fmt, st_nome])
+
+    # Tabela com colWidths ajustado (Soma = ~570pt, ideal para página Letter/A4)
+    tabela = Table(dados_tabela, colWidths=[35, 50, 130, 95, 80, 65, 65])
+    tabela.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2b2d31")),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('ALIGN', (4, 0), (4, -1), 'RIGHT'),  # Alinha o valor monetário à direita
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e0e0")),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+    ]))
+
+    elements.append(tabela)
+    doc.build(elements)
 
 def mostrar(parent):
     # Limpa o container atual antes de renderizar
@@ -15,13 +96,49 @@ def mostrar(parent):
         """Exporta os dados filtrados para uma planilha Excel."""
         pass
 
-    def exportar_em_pdf():
-        """Gera um relatório em PDF com os dados filtrados."""
-        pass
-
         
 
     def atualizar_orcamento():
+
+        def exportar_em_pdf():
+            orcamentos = on_filtrar_click()
+            
+            # 1. Pega os filtros atuais da tela
+            mapa_status = {"Todos": None, "Pendente": 0, "Aprovado": 1, "Cancelado": 2}
+            status_id = mapa_status.get(combo_status.get(), None)
+            
+            # 2. Busca os orçamentos filtrados
+            # (Ajuste o nome da sua função de busca do banco se necessário)
+            orcamentos = on_filtrar_click()
+
+            if not orcamentos:
+                messagebox.showwarning("Aviso", "Não há orçamentos na lista para exportar!")
+                return
+
+            # 3. Abre a janela do Windows para escolher onde salvar
+            nome_padrao = f"Relatorio_Orcamentos_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+            
+            caminho_arquivo = filedialog.asksaveasfilename(
+                defaultextension=".pdf",
+                filetypes=[("Documento PDF", "*.pdf")],
+                title="Salvar Relatório Financeiro",
+                initialfile=nome_padrao
+            )
+
+            # 4. Se o usuário escolheu um local e não cancelou a janela
+            if caminho_arquivo:
+                try:
+                    # Chama a função do ReportLab que criamos
+                    gerar_pdf_orcamentos(orcamentos, caminho_arquivo)
+                    
+                    # Notifica o usuário
+                    messagebox.showinfo("Sucesso", "Relatório PDF gerado com sucesso!")
+                    
+                    # Abre o PDF automaticamente no leitor padrão do Windows
+                    os.startfile(caminho_arquivo)
+                    
+                except Exception as e:
+                    messagebox.showerror("Erro ao Gerar PDF", f"Ocorreu um erro:\n{str(e)}")
             
         def on_aprovar_click(orcamento_id):
             status = 1
@@ -195,11 +312,6 @@ def mostrar(parent):
         # =========================================================================
         # FUNÇÕES DE LÓGICA E ATUALIZAÇÃO
         # =========================================================================
-        def Helper_get_attr(item, atributo):
-            """Lida dinamicamente se o retorno do SQL for Dict ou Objeto/Row."""
-            if isinstance(item, dict):
-                return item.get(atributo)
-            return getattr(item, atributo, None)
 
         def atualizar_cards_resumo(lista_orcamentos):
             totais = {
@@ -311,6 +423,7 @@ def mostrar(parent):
 
             renderizar_tabela(orcamentos)
             atualizar_cards_resumo(orcamentos)
+            return orcamentos
 
         # Carga inicial ao abrir a tela
         on_filtrar_click()
