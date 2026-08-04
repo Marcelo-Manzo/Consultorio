@@ -272,7 +272,7 @@ def mostrar(parent):
         btn_exportar_excel = ctk.CTkButton(
             subframe_direita,
             text="Exportar Excel",
-            fg_color="#00492F",
+            fg_color="#0F621E",
             hover_color="#038049",
             width=120,
             command=exportar_em_excel,
@@ -282,7 +282,7 @@ def mostrar(parent):
         btn_exportar_pdf = ctk.CTkButton(
             subframe_direita,
             text="Gerar PDF",
-            fg_color="#00492F",
+            fg_color="#0F621E",
             hover_color="#038049",
             width=100,
             command=exportar_em_pdf,
