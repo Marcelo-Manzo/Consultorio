@@ -32,6 +32,27 @@ Follow these steps to set up and run the project locally on your machine.
 Ensure you have **Python 3.10** or higher installed on your system.
 
 ### 1. Clone the Repository
-
 ```bash
 git clone https://github.com/Marcelo-Manzo/Consultorio.git
+```
+
+### 2. Create a Virtual Environment  (Recommended)
+```bash
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# macOS / Linux
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 3. 3. Install Dependencies
+Install all required Python libraries:
+```bash
+pip install customtkinter sqlalchemy reportlab pyodbc
+```
+
+### Getting Started:
+1- First, activate the Virtual Enviroment: .venv\Scripts\activate
+2- run: python main.py
