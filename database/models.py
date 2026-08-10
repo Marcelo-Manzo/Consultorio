@@ -365,3 +365,16 @@ def lista_orcamentos_por_status_data(status, data_inicio, data_fim):
         result = conn.execute(query, params)
         # Retorna uma lista de dicionários para fácil leitura no CustomTkinter
         return result.fetchall()
+
+def buscar_orcamento_por_id_consulta(id_consulta):
+    db = get_db()
+    query = text("""
+        SELECT 
+            o.id
+        FROM Orcamentos o
+        INNER JOIN Consultas c ON o.consulta_id = c.id
+        WHERE c.id = :id_consulta
+    """)
+    with db as conn:
+        result = conn.execute(query, {"id_consulta": id_consulta})
+        return result.mappings().fetchall()

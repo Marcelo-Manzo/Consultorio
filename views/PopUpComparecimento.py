@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import buscar_consulta_Atual, marcar_comparecimento
+from database.models import buscar_consulta_Atual, marcar_comparecimento,buscar_orcamento_por_id_consulta,atualizar_status_orcamento
 from datetime import datetime
 
 def mostrar(parent):
@@ -11,6 +11,9 @@ def mostrar(parent):
     def abrir_notificacao_comparecimento(data_e_horario):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
+        orcamentos= buscar_orcamento_por_id_consulta(consulta["id"])
+        orcamento = orcamentos[0]
+        print(orcamento)
 
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
         if not consulta:
@@ -54,6 +57,8 @@ def mostrar(parent):
         def responder_nao():
             # Status 2 = Faltou (vai direto para a aba de faltantes)
             marcar_comparecimento(consulta["id"], status=2)
+            atualizar_status_orcamento(orcamento['id'], novo_status=2)
+            print(f"orcamento :{orcamento['id']} cancelado")
             popup.destroy()
             print(f"Consulta {consulta['id']} marcada como FALTA.")
 
