@@ -1,5 +1,7 @@
 import customtkinter as ctk
-from database.models import criar_paciente, listar_pacientes, buscar_paciente_por_nome
+from validate_docbr import CPF
+import re
+from database.models import criar_paciente, listar_pacientes, buscar_paciente_por_nome, buscar_paciente_por_cpf
 
 # parent: É o local (como a janela principal ou uma aba) onde as telas serao desenhadas.
 def mostrar(parent):
@@ -69,11 +71,129 @@ def mostrar(parent):
                 font=("Segoe UI", 12), 
                 text_color="#cfd0d4"
             ).pack(anchor="w", padx=12, pady=10)
-    
-    def validar():
-        if nome_entry.get().strip() == "" or cpf_entry.get().strip() == "" or telefone_entry.get().strip() == "":
+
+
+    # =============================================================================
+    # MÁSCARAS DINÂMICAS (FORMATAM ENQUANTO DIGITA)
+    # =============================================================================
+    def aplicar_mascara_cpf(event):
+        widget = event.widget
+        texto_atual = widget.get()
+
+        # Extrai apenas números e limita a 11 dígitos
+        numeros = re.sub(r"\D", "", texto_atual)[:11]
+
+        cpf_formatado = ""
+        for i, char in enumerate(numeros):
+            if i in (3, 6):
+                cpf_formatado += "."
+            elif i == 9:
+                cpf_formatado += "-"
+            cpf_formatado += char
+
+        if texto_atual != cpf_formatado:
+            widget.delete(0, "end")
+            widget.insert(0, cpf_formatado)
+
+
+    def aplicar_mascara_telefone(event):
+        widget = event.widget
+        texto_atual = widget.get()
+
+        # Extrai apenas números e limita a 11 dígitos (celular)
+        numeros = re.sub(r"\D", "", texto_atual)[:11]
+
+        tel_formatado = ""
+        for i, char in enumerate(numeros):
+            if i == 0:
+                tel_formatado += "("
+            elif i == 2:
+                tel_formatado += ") "
+            elif len(numeros) <= 10 and i == 6:  # Telefone Fixo: (XX) XXXX-XXXX
+                tel_formatado += "-"
+            elif len(numeros) == 11 and i == 7:  # Celular: (XX) XXXXX-XXXX
+                tel_formatado += "-"
+            tel_formatado += char
+
+        if texto_atual != tel_formatado:
+            widget.delete(0, "end")
+            widget.insert(0, tel_formatado)
+
+
+    # =============================================================================
+    # FUNÇÕES DE VALIDAÇÃO
+    # =============================================================================
+    def eh_telefone_valido(telefone: str) -> bool:
+        # 1. Remove tudo que não for dígito
+        numeros = re.sub(r"\D", "", telefone)
+
+        # 2. Verifica se o tamanho corresponde a Fixos (10 dígitos) ou Celulares (11 dígitos)
+        if len(numeros) not in (10, 11):
             return False
+
+        # 3. Impede sequências repetidas inválidas (ex: 11111111111)
+        if len(set(numeros)) == 1:
+            return False
+
+        # 4. Se for celular (11 dígitos), verifica se o DDD é válido e o 3º dígito é '9'
+        if len(numeros) == 11:
+            ddd = int(numeros[:2])
+            if ddd < 11 or ddd > 99 or ddd % 10 == 0:
+                return False
+
+            if numeros[2] != "9":
+                return False
+
         return True
+
+
+    def validar():
+        cpf_validator = CPF()
+        # 1. Pega os valores limpos
+        nome = nome_entry.get().strip()
+        cpf_str = cpf_entry.get().strip()
+        telefone = telefone_entry.get().strip()
+
+        # 2. Validação do Nome
+        if not nome:
+            resultado_label.configure(
+                text="❌ Insira um nome", text_color="#f87171"
+            )
+            return False
+
+        # 3. Validação do Telefone
+        if not eh_telefone_valido(telefone):
+            resultado_label.configure(
+                text="❌ Telefone inválido", text_color="#f87171"
+            )
+            return False
+
+        # 4. Validação do CPF
+        if not cpf_validator.validate(cpf_str) or not cpf_str:
+            resultado_label.configure(
+                text="❌ CPF inválido", text_color="#f87171"
+            )
+            return False
+        if len(buscar_paciente_por_cpf(cpf_str)):
+            resultado_label.configure(
+                text="❌ Ja existe um paciente com esse CPF", text_color="#f87171"
+            )
+            return False
+
+        # Sucesso
+        resultado_label.configure(
+            text="✓ Cadastrado com sucesso!", text_color="#4ade80"
+        )
+        return True
+
+    # =============================================================================
+    # VINCULANDO OS EVENTOS AOS INPUTS
+    # =============================================================================
+    # Lembre-se de adicionar o .bind() logo após a criação de cada CTkEntry na sua interface:
+
+    cpf_entry.bind("<KeyRelease>", aplicar_mascara_cpf)
+    telefone_entry.bind("<KeyRelease>", aplicar_mascara_telefone)
+
     
     def cadastrar():
         if validar():
@@ -89,8 +209,6 @@ def mostrar(parent):
             
             resultado_label.configure(text="✓ Paciente cadastrado com sucesso!", text_color="#4ade80")
             atualizar_lista()  # Recarrega trazendo todo mundo
-        else:
-            resultado_label.configure(text="❌ Preencha todos os campos obrigatórios.", text_color="#f87171")
         
     def buscar_paciente():
         nome_busca = nome_entry.get().strip()

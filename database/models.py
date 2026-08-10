@@ -29,6 +29,13 @@ def buscar_paciente_por_nome(nome):
         result = conn.execute(query, {"nome": f"%{nome}%"})
         return result.fetchall()
 
+def buscar_paciente_por_cpf(cpf):
+    db = get_db()
+    query = text("SELECT * FROM Pacientes WHERE cpf LIKE :cpf")
+    with db as conn:
+        result = conn.execute(query, {"cpf": f"%{cpf}%"})
+        return result.fetchall()
+
 def buscar_paciente_por_id(paciente_id): 
     db = get_db()
     query = text("SELECT * FROM Pacientes WHERE id = :id")
