@@ -14,7 +14,7 @@ def criar_paciente(nome, telefone, cpf):
         conn.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
         conn.commit()  # CORRIGIDO: Commit na conexão ativa dentro do bloco with
 
-def editar_paciente(paciente_id, novo_nome, novo_numero, novo_cpf):
+def atualizar_paciente(paciente_id, novo_nome, novo_numero, novo_cpf):
     return True
 
 def listar_pacientes():

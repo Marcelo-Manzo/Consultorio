@@ -4,6 +4,7 @@ from database.models import (
     buscar_paciente_por_cpf,
     buscar_paciente_por_nome,
     criar_paciente,
+    atualizar_paciente,  # <--- Certifique-se de importar a função de atualizar
     listar_pacientes,
     excluir_paciente_por_id,
 )
@@ -16,99 +17,62 @@ def mostrar(parent):
         try:
             excluir_paciente_por_id(paciente_id)
             atualizar_lista()
-        except Exception as e:
-            # Caso o paciente possua consultas vinculadas no banco
+        except Exception:
             resultado_label_busca.configure(
                 text="❌ Não é possível excluir: o paciente possui consultas registradas.",
                 text_color="#f87171"
             )
 
-    def abrir_janela_editar(p):
-        """
-        Abre uma janela pop-up (CTkToplevel) preenchida com os dados do paciente selecionada para edição.
-        """
-        frame_editar_paciente = ctk.CTkToplevel(parent, fg_color="#1e1f22")
-        frame_editar_paciente.title("Editar Paciente")
-        
-        largura_janela = 400
-        altura_janela = 380
-
-        largura_tela = frame_editar_paciente.winfo_screenwidth()
-        altura_tela = frame_editar_paciente.winfo_screenheight()
-
-        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
-        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
-
-        frame_editar_paciente.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
-        frame_editar_paciente.grab_set()
-
-        lbl_topo = ctk.CTkLabel(frame_editar_paciente, text="Editar Paciente", font=("Segoe UI", 16, "bold"), text_color="#ffffff")
-        lbl_topo.pack(pady=15)       
-    
     # =========================================================================
-    # POP-UP DE CRIAÇÃO DE PACIENTE (CTkToplevel)
+    # MODAL ÚNICO DE PACIENTE (CRIAÇÃO E EDIÇÃO)
     # =========================================================================
-    def abrir_layout_criar_paciente():
+    def abrir_modal_paciente(paciente=None):
+        eh_edicao = paciente is not None
+
         pop_up = ctk.CTkToplevel(parent, fg_color="#1e1f22")
-        pop_up.title("Novo Paciente")
+        pop_up.title("Editar Paciente" if eh_edicao else "Novo Paciente")
 
-        # Centraliza o modal na tela
+        # Centralização
         largura_janela, altura_janela = 400, 480
         largura_tela = pop_up.winfo_screenwidth()
         altura_tela = pop_up.winfo_screenheight()
         posicao_x = int((largura_tela / 2) - (largura_janela / 2))
         posicao_y = int((altura_tela / 2) - (altura_janela / 2))
 
-        pop_up.geometry(
-            f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}"
-        )
-        pop_up.grab_set()  # Mantém o foco no pop-up
+        pop_up.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        pop_up.grab_set()
 
-        # Título do modal
+        # Título Dinâmico
         ctk.CTkLabel(
             pop_up,
-            text="Cadastrar Novo Paciente",
+            text="Editar Paciente" if eh_edicao else "Cadastrar Novo Paciente",
             font=("Segoe UI", 18, "bold"),
             text_color="#ffffff",
         ).pack(pady=(20, 15))
 
-        # Campos de entrada no Pop-up
-        nome_entry = ctk.CTkEntry(
-            pop_up,
-            width=280,
-            height=35,
-            placeholder_text="Nome do paciente",
-            fg_color="#2b2b2b",
-        )
+        # Campos de entrada
+        nome_entry = ctk.CTkEntry(pop_up, width=280, height=35, placeholder_text="Nome do paciente", fg_color="#2b2b2b")
         nome_entry.pack(pady=6)
 
-        telefone_entry = ctk.CTkEntry(
-            pop_up,
-            width=280,
-            height=35,
-            placeholder_text="Telefone",
-            fg_color="#2b2b2b",
-        )
+        telefone_entry = ctk.CTkEntry(pop_up, width=280, height=35, placeholder_text="Telefone", fg_color="#2b2b2b")
         telefone_entry.pack(pady=6)
 
-        cpf_entry = ctk.CTkEntry(
-            pop_up,
-            width=280,
-            height=35,
-            placeholder_text="CPF",
-            fg_color="#2b2b2b",
-        )
+        cpf_entry = ctk.CTkEntry(pop_up, width=280, height=35, placeholder_text="CPF", fg_color="#2b2b2b")
         cpf_entry.pack(pady=6)
+
+        # Preenchimento automático se for edição
+        if eh_edicao:
+            nome_entry.insert(0, paciente.nome or "")
+            telefone_entry.insert(0, paciente.telefone or "")
+            cpf_entry.insert(0, paciente.cpf or "")
 
         resultado_label = ctk.CTkLabel(pop_up, text="", font=("Segoe UI", 12))
         resultado_label.pack(pady=(5, 0))
 
-        # --- Máscaras Dinâmicas ---
+        # --- Máscaras ---
         def aplicar_mascara_cpf(event):
-            widget = event.widget
-            texto_atual = widget.get()
+            texto_atual = event.widget.get()
             numeros = re.sub(r"\D", "", texto_atual)[:11]
-
             cpf_formatado = ""
             for i, char in enumerate(numeros):
                 if i in (3, 6):
@@ -118,14 +82,12 @@ def mostrar(parent):
                 cpf_formatado += char
 
             if texto_atual != cpf_formatado:
-                widget.delete(0, "end")
-                widget.insert(0, cpf_formatado)
+                event.widget.delete(0, "end")
+                event.widget.insert(0, cpf_formatado)
 
         def aplicar_mascara_telefone(event):
-            widget = event.widget
-            texto_atual = widget.get()
+            texto_atual = event.widget.get()
             numeros = re.sub(r"\D", "", texto_atual)[:11]
-
             tel_formatado = ""
             for i, char in enumerate(numeros):
                 if i == 0:
@@ -139,26 +101,20 @@ def mostrar(parent):
                 tel_formatado += char
 
             if texto_atual != tel_formatado:
-                widget.delete(0, "end")
-                widget.insert(0, tel_formatado)
+                event.widget.delete(0, "end")
+                event.widget.insert(0, tel_formatado)
 
-        # Associa as máscaras
         cpf_entry.bind("<KeyRelease>", aplicar_mascara_cpf)
         telefone_entry.bind("<KeyRelease>", aplicar_mascara_telefone)
 
-        # --- Validações e Cadastro ---
+        # --- Validações ---
         def eh_telefone_valido(telefone: str) -> bool:
             numeros = re.sub(r"\D", "", telefone)
             if len(numeros) not in (10, 11) or len(set(numeros)) == 1:
                 return False
             if len(numeros) == 11:
                 ddd = int(numeros[:2])
-                if (
-                    ddd < 11
-                    or ddd > 99
-                    or ddd % 10 == 0
-                    or numeros[2] != "9"
-                ):
+                if ddd < 11 or ddd > 99 or ddd % 10 == 0 or numeros[2] != "9":
                     return False
             return True
 
@@ -169,49 +125,44 @@ def mostrar(parent):
             telefone = telefone_entry.get().strip()
 
             if not nome:
-                resultado_label.configure(
-                    text="❌ Insira um nome", text_color="#f87171"
-                )
+                resultado_label.configure(text="❌ Insira um nome", text_color="#f87171")
                 return False
 
             if not eh_telefone_valido(telefone):
-                resultado_label.configure(
-                    text="❌ Telefone inválido", text_color="#f87171"
-                )
+                resultado_label.configure(text="❌ Telefone inválido", text_color="#f87171")
                 return False
 
             if not cpf_str or not cpf_validator.validate(cpf_str):
-                resultado_label.configure(
-                    text="❌ CPF inválido", text_color="#f87171"
-                )
+                resultado_label.configure(text="❌ CPF inválido", text_color="#f87171")
                 return False
 
-            if len(buscar_paciente_por_cpf(cpf_str)) > 0:
-                resultado_label.configure(
-                    text="❌ Já existe paciente com este CPF",
-                    text_color="#f87171",
-                )
-                return False
+            # No caso de edição, ignora a checagem de CPF se o CPF continuar o mesmo
+            if not eh_edicao or (eh_edicao and cpf_str != paciente.cpf):
+                if len(buscar_paciente_por_cpf(cpf_str)) > 0:
+                    resultado_label.configure(text="❌ Já existe paciente com este CPF", text_color="#f87171")
+                    return False
 
             return True
 
-        def cadastrar():
+        def salvar():
             if validar():
                 nome = nome_entry.get().strip()
-                cpf = cpf_entry.get().strip()
+                cpf_str = cpf_entry.get().strip()
                 telefone = telefone_entry.get().strip()
 
-                criar_paciente(nome, telefone, cpf)
+                if eh_edicao:
+                    atualizar_paciente(paciente.id, nome, telefone, cpf_str)
+                else:
+                    criar_paciente(nome, telefone, cpf_str)
 
-                # Atualiza a lista principal e fecha o modal
                 atualizar_lista()
                 pop_up.destroy()
 
-        # Botão de Ação no Pop-up (sem parênteses no command!)
+        # Botão com texto dinâmico
         ctk.CTkButton(
             pop_up,
-            text="Salvar Paciente",
-            command=cadastrar,
+            text="Atualizar Paciente" if eh_edicao else "Salvar Paciente",
+            command=salvar,
             width=280,
             height=40,
             font=("Segoe UI", 13, "bold"),
@@ -222,18 +173,10 @@ def mostrar(parent):
     # =========================================================================
     # TELA PRINCIPAL (GESTAO E LISTAGEM)
     # =========================================================================
-    lbl_titulo = ctk.CTkLabel(
-        parent,
-        text="Controle de Pacientes",
-        font=("Segoe UI", 24, "bold"),
-        text_color="#ffffff",
-    )
+    lbl_titulo = ctk.CTkLabel(parent, text="Controle de Pacientes", font=("Segoe UI", 24, "bold"), text_color="#ffffff")
     lbl_titulo.pack(anchor="w", padx=25, pady=(20, 10))
 
-    # BARRA SUPERIOR (Busca e Botão Novo)
-    frame_topo = ctk.CTkFrame(
-        parent, fg_color="#141517", border_width=1, border_color="#242528"
-    )
+    frame_topo = ctk.CTkFrame(parent, fg_color="#141517", border_width=1, border_color="#242528")
     frame_topo.pack(fill="x", padx=25, pady=(0, 15))
 
     entry_busca = ctk.CTkEntry(
@@ -253,121 +196,81 @@ def mostrar(parent):
         font=("Segoe UI", 13, "bold"),
         fg_color="#2b7a3e",
         hover_color="#1e542b",
-        command=abrir_layout_criar_paciente,
+        command=lambda: abrir_modal_paciente(),  # Abre sem parâmetro (Modo Criar)
     )
     btn_novo_paciente.pack(side="right", padx=(0, 15), pady=12)
 
-    # ÁREA CENTRAL (Lista / Cards)
-    frame_container_lista = ctk.CTkFrame(
-        parent, fg_color="#141517", border_width=1, border_color="#242528"
-    )
-    frame_container_lista.pack(
-        fill="both", expand=True, padx=25, pady=(0, 20)
-    )
+    frame_container_lista = ctk.CTkFrame(parent, fg_color="#141517", border_width=1, border_color="#242528")
+    frame_container_lista.pack(fill="both", expand=True, padx=25, pady=(0, 20))
 
-    resultado_label_busca = ctk.CTkLabel(
-        frame_container_lista,
-        text="Listando todos os pacientes",
-        font=("Segoe UI", 12),
-        text_color="#9ca3af",
-    )
+    resultado_label_busca = ctk.CTkLabel(frame_container_lista, text="Listando todos os pacientes", font=("Segoe UI", 12), text_color="#9ca3af")
     resultado_label_busca.pack(anchor="w", padx=15, pady=(10, 5))
 
-    lista_frame = ctk.CTkScrollableFrame(
-        frame_container_lista, fg_color="transparent"
-    )
+    lista_frame = ctk.CTkScrollableFrame(frame_container_lista, fg_color="transparent")
     lista_frame.pack(fill="both", expand=True, padx=15, pady=(0, 10))
 
-    # --- Lógica de Renderização e Pesquisa na Lista ---
     def atualizar_lista(lista_filtrada=None):
         for widget in lista_frame.winfo_children():
             widget.destroy()
 
-        pacientes = (
-            lista_filtrada
-            if lista_filtrada is not None
-            else listar_pacientes()
-        )
+        pacientes = lista_filtrada if lista_filtrada is not None else listar_pacientes()
 
         if not pacientes:
-            resultado_label_busca.configure(
-                text="❌ Nenhum paciente encontrado.", text_color="#f87171"
-            )
+            resultado_label_busca.configure(text="❌ Nenhum paciente encontrado.", text_color="#f87171")
             return
 
-        resultado_label_busca.configure(
-            text=f"✓ Exibindo {len(pacientes)} paciente(s).", text_color="#9ca3af"
-        )
+        resultado_label_busca.configure(text=f"✓ Exibindo {len(pacientes)} paciente(s).", text_color="#9ca3af")
 
         for p in pacientes:
-            card = ctk.CTkFrame(
-                lista_frame,
-                fg_color="#212225",
-                border_width=1,
-                border_color="#3a3a3a",
-                corner_radius=8,
-            )
+            card = ctk.CTkFrame(lista_frame, fg_color="#212225", border_width=1, border_color="#3a3a3a", corner_radius=8)
             card.pack(fill="x", padx=5, pady=5)
 
             frame_acoes = ctk.CTkFrame(card, fg_color="transparent")
             frame_acoes.pack(side="right", padx=10)
 
             texto = f"Nome: {p.nome}\nTelefone: {p.telefone} | CPF: {p.cpf}"
-            ctk.CTkLabel(
-                card,
-                text=texto,
-                justify="left",
-                font=("Segoe UI", 12),
-                text_color="#cfd0d4",
-            ).pack(side="left", anchor="w", padx=12, pady=10)
+            ctk.CTkLabel(card, text=texto, justify="left", font=("Segoe UI", 12), text_color="#cfd0d4").pack(side="left", anchor="w", padx=12, pady=10)
 
             btn_editar = ctk.CTkButton(
                 frame_acoes, 
                 text="Editar", 
-                command=lambda paciente = p: [abrir_janela_editar(paciente)], 
-                width=42,
-                height=24,
-                font=("Segoe UI", 10, "bold"),
+                command=lambda paciente_obj=p: abrir_modal_paciente(paciente_obj),  # Abre com parâmetro (Modo Editar)
+                width=50,
+                height=28,
+                font=("Segoe UI", 11, "bold"),
                 corner_radius=5,
                 fg_color="#053d1c",
                 hover_color="#04270d",
                 text_color="#cfd0d4"
             )
-            btn_editar.pack(side="left", fill="x", expand=True)
+            btn_editar.pack(side="left", padx=3)
 
-            btn_editar = ctk.CTkButton(
+            btn_excluir = ctk.CTkButton(
                 frame_acoes, 
                 text="❌", 
-                command=lambda id_p=p.id: [deletar_paciente(id_p)], 
-                width=24,
-                height=24,
+                command=lambda id_p=p.id: deletar_paciente(id_p), 
+                width=28,
+                height=28,
                 corner_radius=5,
                 fg_color="#361a1a",
                 hover_color="#542323",
                 text_color="#f87171"
             )
-            btn_editar.pack(side="right", fill="x", expand=True)
+            btn_excluir.pack(side="left", padx=3)
 
     def buscar_paciente(event=None):
         termo = entry_busca.get().strip()
-
         if not termo:
             atualizar_lista()
             return
 
-        # Verifica se parece busca por CPF ou por Nome
         apenas_numeros = re.sub(r"\D", "", termo)
-        if len(apenas_numeros) > 0 and (
-            termo[0].isdigit() or "." in termo or "-" in termo
-        ):
+        if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
             encontrados = buscar_paciente_por_cpf(termo)
         else:
             encontrados = buscar_paciente_por_nome(termo)
 
         atualizar_lista(encontrados)
 
-    # Associa a busca ao evento de digitar
     entry_busca.bind("<KeyRelease>", buscar_paciente)
-
-    # Carrega a lista inicial
     atualizar_lista()
