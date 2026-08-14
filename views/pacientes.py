@@ -23,8 +23,27 @@ def mostrar(parent):
                 text_color="#f87171"
             )
 
-    def abrir_janela_editar():
-        pass
+    def abrir_janela_editar(p):
+        """
+        Abre uma janela pop-up (CTkToplevel) preenchida com os dados do paciente selecionada para edição.
+        """
+        frame_editar_paciente = ctk.CTkToplevel(parent, fg_color="#1e1f22")
+        frame_editar_paciente.title("Editar Paciente")
+        
+        largura_janela = 400
+        altura_janela = 380
+
+        largura_tela = frame_editar_paciente.winfo_screenwidth()
+        altura_tela = frame_editar_paciente.winfo_screenheight()
+
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+
+        frame_editar_paciente.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        frame_editar_paciente.grab_set()
+
+        lbl_topo = ctk.CTkLabel(frame_editar_paciente, text="Editar Paciente", font=("Segoe UI", 16, "bold"), text_color="#ffffff")
+        lbl_topo.pack(pady=15)       
     
     # =========================================================================
     # POP-UP DE CRIAÇÃO DE PACIENTE (CTkToplevel)
@@ -305,7 +324,7 @@ def mostrar(parent):
             btn_editar = ctk.CTkButton(
                 frame_acoes, 
                 text="Editar", 
-                command=abrir_janela_editar, 
+                command=lambda paciente = p: [abrir_janela_editar(paciente)], 
                 width=42,
                 height=24,
                 font=("Segoe UI", 10, "bold"),
