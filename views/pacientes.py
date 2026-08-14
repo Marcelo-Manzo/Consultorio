@@ -5,11 +5,27 @@ from database.models import (
     buscar_paciente_por_nome,
     criar_paciente,
     listar_pacientes,
+    excluir_paciente_por_id,
 )
 from validate_docbr import CPF
 
 
 def mostrar(parent):
+
+    def deletar_paciente(paciente_id):
+        try:
+            excluir_paciente_por_id(paciente_id)
+            atualizar_lista()
+        except Exception as e:
+            # Caso o paciente possua consultas vinculadas no banco
+            resultado_label_busca.configure(
+                text="❌ Não é possível excluir: o paciente possui consultas registradas.",
+                text_color="#f87171"
+            )
+
+    def abrir_janela_editar():
+        pass
+    
     # =========================================================================
     # POP-UP DE CRIAÇÃO DE PACIENTE (CTkToplevel)
     # =========================================================================
@@ -274,6 +290,9 @@ def mostrar(parent):
             )
             card.pack(fill="x", padx=5, pady=5)
 
+            frame_acoes = ctk.CTkFrame(card, fg_color="transparent")
+            frame_acoes.pack(side="right", padx=10)
+
             texto = f"Nome: {p.nome}\nTelefone: {p.telefone} | CPF: {p.cpf}"
             ctk.CTkLabel(
                 card,
@@ -282,6 +301,33 @@ def mostrar(parent):
                 font=("Segoe UI", 12),
                 text_color="#cfd0d4",
             ).pack(side="left", anchor="w", padx=12, pady=10)
+
+            btn_editar = ctk.CTkButton(
+                frame_acoes, 
+                text="Editar", 
+                command=abrir_janela_editar, 
+                width=42,
+                height=24,
+                font=("Segoe UI", 10, "bold"),
+                corner_radius=5,
+                fg_color="#053d1c",
+                hover_color="#04270d",
+                text_color="#cfd0d4"
+            )
+            btn_editar.pack(side="left", fill="x", expand=True)
+
+            btn_editar = ctk.CTkButton(
+                frame_acoes, 
+                text="❌", 
+                command=lambda id_p=p.id: [deletar_paciente(id_p)], 
+                width=24,
+                height=24,
+                corner_radius=5,
+                fg_color="#361a1a",
+                hover_color="#542323",
+                text_color="#f87171"
+            )
+            btn_editar.pack(side="right", fill="x", expand=True)
 
     def buscar_paciente(event=None):
         termo = entry_busca.get().strip()

@@ -14,6 +14,9 @@ def criar_paciente(nome, telefone, cpf):
         conn.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
         conn.commit()  # CORRIGIDO: Commit na conexão ativa dentro do bloco with
 
+def editar_paciente(paciente_id, novo_nome, novo_numero, novo_cpf):
+    return True
+
 def listar_pacientes():
     db = get_db()
     query = text("SELECT * FROM Pacientes ORDER BY nome")
@@ -42,6 +45,14 @@ def buscar_paciente_por_id(paciente_id):
     with db as conn:
         result = conn.execute(query, {"id": paciente_id})
         return result.fetchone()  # Mantido fetchone() para a agenda funcionar
+
+def excluir_paciente_por_id(paciente_id):
+    db = get_db()
+    query = text("DELETE FROM Pacientes WHERE id = :paciente_id")
+    
+    with db as conn:
+        conn.execute(query, {"paciente_id": paciente_id})
+        conn.commit() 
 
 # ==================== CONSULTAS ====================
 
