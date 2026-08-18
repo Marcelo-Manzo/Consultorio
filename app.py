@@ -33,7 +33,8 @@ class App(ctk.CTk):
             font=fonte_clean,
             command=self.mostrar_pacientes,
             width=180,
-            fg_color = "#002A93"
+            fg_color = "#002A93",
+            hover_color="#070062"
         ).pack(pady=10)
         
         ctk.CTkButton(
@@ -42,7 +43,8 @@ class App(ctk.CTk):
             font=fonte_clean,
             command=self.mostrar_agenda_semanal,
             width=180,
-            fg_color = "#002A93"
+            fg_color = "#002A93",
+            hover_color="#070062"
         ).pack(pady=10)
 
         ctk.CTkButton(
@@ -51,7 +53,8 @@ class App(ctk.CTk):
             font=fonte_clean,
             command=self.mostrar_consultas,
             width=180,
-            fg_color = "#002A93"
+            fg_color = "#002A93",
+            hover_color="#070062"
         ).pack(pady=10)
         
         ctk.CTkButton(
@@ -60,7 +63,8 @@ class App(ctk.CTk):
             font=fonte_clean,
             command=self.mostrar_faltantes,
             width=180,
-            fg_color = "#002A93"
+            fg_color = "#002A93",
+            hover_color="#070062"
         ).pack(pady=10)
 
         ctk.CTkButton(
@@ -69,7 +73,8 @@ class App(ctk.CTk):
             font=fonte_clean,
             command=self.mostrar_orcamento,
             width=180,
-            fg_color = "#002A93"
+            fg_color = "#002A93",
+            hover_color="#070062"
         ).pack(pady=10)
                 
         # Frame principal onde as telas aparecem

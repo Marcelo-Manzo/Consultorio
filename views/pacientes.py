@@ -194,8 +194,8 @@ def mostrar(parent):
         text="+ Criar Paciente",
         height=40,
         font=("Segoe UI", 13, "bold"),
-        fg_color="#2b7a3e",
-        hover_color="#1e542b",
+        fg_color="#08631d",
+        hover_color="#073c14",
         command=lambda: abrir_modal_paciente(),  # Abre sem parâmetro (Modo Criar)
     )
     btn_novo_paciente.pack(side="right", padx=(0, 15), pady=12)
