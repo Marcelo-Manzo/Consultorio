@@ -17,3 +17,6 @@ env/
 Thumbs.db
 .DS_Store
 *.log
+
+#Agentes
+AGENTS.md

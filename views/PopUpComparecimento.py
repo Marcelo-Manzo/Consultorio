@@ -1,5 +1,5 @@
 import customtkinter as ctk
-from database.models import buscar_consulta_Atual, marcar_comparecimento,buscar_orcamento_por_id_consulta,atualizar_status_orcamento
+from database.models import buscar_consulta_Atual, marcar_comparecimento,buscar_orcamento_por_id_consulta,atualizar_status_orcamento,deletar_orcamento
 from datetime import datetime
 
 def mostrar(parent):
@@ -57,7 +57,7 @@ def mostrar(parent):
         def responder_nao():
             # Status 2 = Faltou (vai direto para a aba de faltantes)
             marcar_comparecimento(consulta["id"], status=2)
-            atualizar_status_orcamento(orcamento['id'], novo_status=2)
+            deletar_orcamento(orcamento["id"])
             print(f"orcamento :{orcamento['id']} cancelado")
             popup.destroy()
             print(f"Consulta {consulta['id']} marcada como FALTA.")

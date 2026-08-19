@@ -404,3 +404,10 @@ def buscar_orcamento_por_id_consulta(id_consulta):
     with db as conn:
         result = conn.execute(query, {"id_consulta": id_consulta})
         return result.mappings().fetchall()
+
+def deletar_orcamento(orcamento_id):
+    db = get_db()
+    query = text("delete from Orcamentos where id = :id")
+    with db as conn:
+        conn.execute(query, {"id": orcamento_id})
+        conn.commit()
