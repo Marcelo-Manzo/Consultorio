@@ -258,13 +258,41 @@ def mostrar(parent):
             )
             btn_excluir.pack(side="left", padx=3)
 
+    def aplicar_mascara_busca(event):
+        # Se a tecla pressionada for Backspace ou Delete, não aplica a máscara para permitir apagar
+        if event.keysym in ("BackSpace", "Delete"):
+            return
+
+        widget = event.widget
+        texto_atual = widget.get()
+        
+        # Se o texto começar com número, aplica a máscara de CPF
+        if texto_atual and texto_atual[0].isdigit():
+            numeros = re.sub(r"\D", "", texto_atual)[:11]
+            cpf_formatado = ""
+            for i, char in enumerate(numeros):
+                if i in (3, 6):
+                    cpf_formatado += "."
+                elif i == 9:
+                    cpf_formatado += "-"
+                cpf_formatado += char
+
+            if texto_atual != cpf_formatado:
+                widget.delete(0, "end")
+                widget.insert(0, cpf_formatado)
+
     def buscar_paciente(event=None):
+        # Primeiramente aplica a máscara visual no campo
+        aplicar_mascara_busca(event)
+
         termo = entry_busca.get().strip()
         if not termo:
             atualizar_lista()
             return
 
         apenas_numeros = re.sub(r"\D", "", termo)
+        
+        # Se houver números ou caracteres de CPF, realiza a busca por CPF
         if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
             encontrados = buscar_paciente_por_cpf(termo)
         else:
