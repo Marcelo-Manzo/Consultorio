@@ -1,0 +1,56 @@
+============================================
+LISTA DE PROBLEMAS - Consultorio
+============================================
+
+[ ] 1. BROKEN DATABASE SESSION (database/connection.py)
+    - get_db() retorna antes do finally, sessões nunca são fechadas
+    - Causa connection leaks que travam o app com uso prolongado
+    - STATUS: PENDENTE
+
+[ ] 2. GOD FILE (database/models.py - 413 linhas)
+    - Todas as 25+ funções de banco em um único arquivo
+    - Sem separação por domínio (pacientes, consultas, orçamentos)
+    - STATUS: PENDENTE
+
+[ ] 3. ZERO TESTES, LINTING E TYPE CHECKING
+    - Sem cobertura de testes
+    - Sem análise estática (ruff, mypy)
+    - Impossível detectar regressões
+    - STATUS: PENDENTE
+
+[ ] 4. SQLAlchemy USADO ERRADO
+    - Instalado mas usado só como connection pool com raw SQL
+    - Sem benefícios do ORM (type safety, migrations, schema)
+    - STATUS: PENDENTE
+
+[ ] 5. CONNECTION STRING HARDCODED (database/connection.py:4)
+    - "@MARCELO/Consultorio" fixado no código
+    - App quebra em qualquer outra máquina
+    - Sem suporte a .env
+    Os Benefícios PerdidosO texto destaca que o projeto perdeu as principais vantagens de usar um ORM:
+    Type Safety (Segurança de Tipos): O editor de código não consegue validar se as colunas ou tabelas chamadas no SQL puro realmente existem, aumentando a chance de erros de digitação em produção.
+
+    Migrations (Migrações): O projeto não usa ferramentas automáticas (como o Alembic) para versionar, criar ou alterar as tabelas do banco de dados de forma organizada.
+    
+    Schema (Esquema): Não há modelos em código Python que definam visualmente a estrutura das tabelas, chaves primárias e relacionamentos do banco de dados.
+    - STATUS: PENDENTE
+
+[ ] 6. TIPOS DE RETORNO INCONSISTENTES
+    - Algumas queries retornam Row objects, outras dicts
+    - buscar_consulta_por_id vs buscar_consulta_por_id_dict
+    - STATUS: PENDENTE
+
+[ ] 7. SEM ERROR HANDLING NAS VIEWS
+    - A maioria das views chamam funções DB sem try/except
+    - Query falhada trava a UI
+    - STATUS: PENDENTE
+
+[ ] 8. REQUIREMENTS.TXT INCOMPLETO
+    - Faltam: reportlab, validate-docbr
+    - Sem version pins - builds não reproduzíveis
+    - STATUS: PENDENTE
+
+============================================
+ORDEM DE PRIORIDADE:
+1 → 5 → 3 → 2 → 4 → 6 → 7 → 8
+============================================
