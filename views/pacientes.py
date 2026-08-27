@@ -7,11 +7,114 @@ from database.models import (
     atualizar_paciente,  # <--- Certifique-se de importar a função de atualizar
     listar_pacientes,
     excluir_paciente_por_id,
+    listar_consultas_paciente,
 )
 from validate_docbr import CPF
 
 
 def mostrar(parent):
+    def abrir_modal_historico(paciente):
+        popup = ctk.CTkToplevel(parent, fg_color="#1e1f22")
+        popup.title(f"Histórico - {paciente.nome}")
+
+        # 1. Centralização da janela no topo
+        largura_janela, altura_janela = 460, 480
+        largura_tela = popup.winfo_screenwidth()
+        altura_tela = popup.winfo_screenheight()
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+
+        popup.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        popup.grab_set()
+
+        # 2. Cabeçalho estilizado
+        frame_header = ctk.CTkFrame(popup, fg_color="transparent")
+        frame_header.pack(fill="x", padx=20, pady=(15, 5))
+
+        ctk.CTkLabel(
+            frame_header, 
+            text=f"📋 {paciente.nome}", 
+            font=("Segoe UI", 16, "bold"),
+            text_color="#ffffff"
+        ).pack(anchor="w")
+
+        ctk.CTkLabel(
+            frame_header, 
+            text=f"CPF: {paciente.cpf}  •  {paciente.telefone}", 
+            font=("Segoe UI", 11),
+            text_color="#9ca3af"
+        ).pack(anchor="w", pady=(2, 0))
+
+        # Divisor visual
+        ctk.CTkFrame(popup, height=1, fg_color="#2e2f33").pack(fill="x", padx=20, pady=10)
+
+        # 3. Container rolável
+        container_consultas = ctk.CTkScrollableFrame(popup, fg_color="transparent")
+        container_consultas.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+
+        consultas = listar_consultas_paciente(paciente.id)
+
+        # 4. Estado vazio (sem consultas)
+        if not consultas:
+            ctk.CTkLabel(
+                container_consultas,
+                text="Nenhuma consulta registrada para este paciente.",
+                font=("Segoe UI", 12, "italic"),
+                text_color="#6b7280"
+            ).pack(pady=40)
+            return
+
+        # 5. Lista de cards estilizados
+        for c in consultas:
+            card_historico = ctk.CTkFrame(
+                container_consultas, 
+                fg_color="#25262b", 
+                border_width=1, 
+                border_color="#333438", 
+                corner_radius=8
+            )
+            card_historico.pack(fill="x", padx=5, pady=4)
+
+            # Lado Esquerdo: Detalhes do Procedimento e Data
+            frame_info = ctk.CTkFrame(card_historico, fg_color="transparent")
+            frame_info.pack(side="left", fill="both", expand=True, padx=12, pady=10)
+
+            ctk.CTkLabel(
+                frame_info,
+                text=c.tratamento,
+                font=("Segoe UI", 13, "bold"),
+                text_color="#e5e7eb"
+            ).pack(anchor="w")
+
+            data_formatada = c.data.strftime('%d/%m/%Y às %H:%M')
+            ctk.CTkLabel(
+                frame_info,
+                text=f"📅 {data_formatada}",
+                font=("Segoe UI", 11),
+                text_color="#9ca3af"
+            ).pack(anchor="w", pady=(2, 0))
+
+            # Lado Direito: Valor e Tag do Pagamento
+            frame_valor = ctk.CTkFrame(card_historico, fg_color="transparent")
+            frame_valor.pack(side="right", anchor="e", padx=12, pady=10)
+
+            ctk.CTkLabel(
+                frame_valor,
+                text=f"R$ {c.valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
+                font=("Segoe UI", 13, "bold"),
+                text_color="#4ade80"  # Verde destaque para valor
+            ).pack(anchor="e")
+
+            # Badge com a forma de pagamento
+            badge = ctk.CTkFrame(frame_valor, fg_color="#1e293b", corner_radius=4)
+            badge.pack(anchor="e", pady=(3, 0))
+
+            ctk.CTkLabel(
+                badge,
+                text=c.metodo_pagamento.upper(),
+                font=("Segoe UI", 9, "bold"),
+                text_color="#60a5fa"
+            ).pack(padx=6, pady=2)
 
     def deletar_paciente(paciente_id):
         try:
@@ -222,19 +325,40 @@ def mostrar(parent):
         resultado_label_busca.configure(text=f"✓ Exibindo {len(pacientes)} paciente(s).", text_color="#9ca3af")
 
         for p in pacientes:
-            card = ctk.CTkFrame(lista_frame, fg_color="#212225", border_width=1, border_color="#3a3a3a", corner_radius=8)
+            card = ctk.CTkFrame(
+                lista_frame, 
+                fg_color="#212225", 
+                border_width=1, 
+                border_color="#3a3a3a", 
+                corner_radius=8,
+                cursor="hand2"  # Muda o ponteiro do mouse para a mãozinha
+            )
             card.pack(fill="x", padx=5, pady=5)
 
             frame_acoes = ctk.CTkFrame(card, fg_color="transparent")
             frame_acoes.pack(side="right", padx=10)
 
             texto = f"Nome: {p.nome}\nTelefone: {p.telefone} | CPF: {p.cpf}"
-            ctk.CTkLabel(card, text=texto, justify="left", font=("Segoe UI", 12), text_color="#cfd0d4").pack(side="left", anchor="w", padx=12, pady=10)
+            lbl_info = ctk.CTkLabel(
+                card, 
+                text=texto, 
+                justify="left", 
+                font=("Segoe UI", 12), 
+                text_color="#cfd0d4",
+                cursor="hand2"
+            )
+            lbl_info.pack(side="left", anchor="w", padx=12, pady=10)
 
+            # --- EVENTO DE CLIQUE PARA ABRIR O HISTÓRICO ---
+            # Vincula o clique tanto no card quanto no texto do paciente
+            card.bind("<Button-1>", lambda event, paciente_obj=p: abrir_modal_historico(paciente_obj))
+            lbl_info.bind("<Button-1>", lambda event, paciente_obj=p: abrir_modal_historico(paciente_obj))
+
+            # Botões de Ação (Editar e Excluir continuam com seus próprios comandos)
             btn_editar = ctk.CTkButton(
                 frame_acoes, 
                 text="Editar", 
-                command=lambda paciente_obj=p: abrir_modal_paciente(paciente_obj),  # Abre com parâmetro (Modo Editar)
+                command=lambda paciente_obj=p: abrir_modal_paciente(paciente_obj),
                 width=50,
                 height=28,
                 font=("Segoe UI", 11, "bold"),

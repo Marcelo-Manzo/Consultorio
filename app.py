@@ -46,16 +46,6 @@ class App(ctk.CTk):
             fg_color = "#002A93",
             hover_color="#070062"
         ).pack(pady=10)
-
-        ctk.CTkButton(
-            self.sidebar,
-            text="Consultas",
-            font=fonte_clean,
-            command=self.mostrar_consultas,
-            width=180,
-            fg_color = "#002A93",
-            hover_color="#070062"
-        ).pack(pady=10)
         
         ctk.CTkButton(
             self.sidebar,
