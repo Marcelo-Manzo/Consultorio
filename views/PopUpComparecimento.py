@@ -12,7 +12,9 @@ def mostrar(parent):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
         orcamentos= buscar_orcamento_por_id_consulta(consulta["id"])
-        orcamento = orcamentos[0]
+        if orcamentos is not None:
+            orcamento = orcamentos[0]
+        
         print(orcamento)
 
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
@@ -56,11 +58,15 @@ def mostrar(parent):
 
         def responder_nao():
             # Status 2 = Faltou (vai direto para a aba de faltantes)
-            marcar_comparecimento(consulta["id"], status=2)
-            deletar_orcamento(orcamento["id"])
-            print(f"orcamento :{orcamento['id']} cancelado")
-            popup.destroy()
-            print(f"Consulta {consulta['id']} marcada como FALTA.")
+            if orcamento:
+                marcar_comparecimento(consulta["id"], status=2)
+                deletar_orcamento(orcamento["id"])
+                print(f"orcamento :{orcamento['id']} cancelado")
+                popup.destroy()
+                print(f"Consulta {consulta['id']} marcada como FALTA.")
+            else:
+                print("Orcamento inexistente")
+
 
         #==================== ELEMENTOS VISUAIS ====================
         

@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from datetime import datetime, timedelta
-from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, criar_consulta
+from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, criar_consulta,buscar_orcamento_por_id_consulta
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}
@@ -101,20 +101,8 @@ def mostrar(parent):
         Quando o usuário clica no '✔', significa que o paciente apareceu 
         (ou a falta foi resolvida).
         """
-        marcar_comparecimento(id_consulta,2) # Salva no banco
-        atualizar_tabela_faltantes()       # Atualiza a tela da sua sogra na hora!
-
-    def abrir_detalhes_paciente(id_paciente):
-        """
-        O que fazer aqui:
-        1. Executada quando o usuário dá um Duplo Clique na linha ou no nome do paciente.
-        2. Você pode abrir uma janela mostrando o prontuário, telefone ou histórico do paciente.
-        """
-
-        # [SEU CÓDIGO AQUI]
-        print(f"Duplo clique: Abrindo prontuário do paciente ID: {id_paciente}")
-        pass
-
+        marcar_comparecimento(id_consulta,3)
+        atualizar_tabela_faltantes()
 
     def avanca_semana():
         controle_semana["deslocamento"] += 1

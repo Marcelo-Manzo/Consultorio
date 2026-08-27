@@ -115,10 +115,6 @@ class App(ctk.CTk):
         self.limpar_frame()
         pacientes.mostrar(self.main_frame)
     
-    def mostrar_consultas(self):
-        self.limpar_frame()
-        consultas.mostrar(self.main_frame)
-    
     def mostrar_agenda_semanal(self):
         self.limpar_frame()
         agenda_Semanal.mostrar(self.main_frame)
