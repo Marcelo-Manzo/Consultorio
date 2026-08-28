@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -6,9 +7,10 @@ DATABASE_URL = "mssql+pyodbc://@MARCELO/Consultorio?driver=ODBC+Driver+17+for+SQ
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
 
+@contextmanager
 def get_db():
     db = SessionLocal()
     try:
-        return db
+        yield db
     finally:
         db.close()
