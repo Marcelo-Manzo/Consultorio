@@ -12,6 +12,7 @@ LISTA DE PROBLEMAS - Consultorio
     - Todas as 25+ funções de banco em um único arquivo
     - Solução: dividido em pacientes.py, consultas.py, orcamento.py
     - STATUS: CONCLUIDO
+    commit do dia 29/08
 
 [ ] 3. ZERO TESTES, LINTING E TYPE CHECKING
     - Sem cobertura de testes
