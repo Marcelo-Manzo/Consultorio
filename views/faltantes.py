@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from datetime import datetime, timedelta
-from database.models import listar_faltas_data,marcar_comparecimento,buscar_consulta_por_id_dict, criar_consulta,buscar_orcamento_por_id_consulta
+from database.consultas import listar_faltas_data, marcar_comparecimento, buscar_consulta_por_id_dict, criar_consulta
+from database.orcamento import buscar_orcamento_por_id_consulta
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}

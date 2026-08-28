@@ -1,5 +1,6 @@
 import customtkinter as ctk
-from database.models import buscar_consulta_Atual, marcar_comparecimento,buscar_orcamento_por_id_consulta,atualizar_status_orcamento,deletar_orcamento
+from database.consultas import buscar_consulta_Atual, marcar_comparecimento
+from database.orcamento import buscar_orcamento_por_id_consulta, atualizar_status_orcamento, deletar_orcamento
 from datetime import datetime
 
 def mostrar(parent):

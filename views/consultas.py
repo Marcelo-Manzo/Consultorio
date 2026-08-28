@@ -1,5 +1,6 @@
 import customtkinter as ctk
-from database.models import criar_consulta, listar_consultas_paciente, listar_tratamentos, buscar_paciente_por_nome, listar_consultas_data
+from database.consultas import criar_consulta, listar_consultas_paciente, listar_tratamentos, listar_consultas_data
+from database.pacientes import buscar_paciente_por_nome
 from datetime import datetime
 
 def mostrar(parent):

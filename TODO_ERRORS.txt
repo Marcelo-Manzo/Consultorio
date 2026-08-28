@@ -8,10 +8,10 @@ LISTA DE PROBLEMAS - Consultorio
     - STATUS: CONCLUIDO
     commit do dia 29/08
 
-[ ] 2. GOD FILE (database/models.py - 413 linhas)
+[x] 2. GOD FILE (database/models.py - 413 linhas)
     - Todas as 25+ funções de banco em um único arquivo
-    - Sem separação por domínio (pacientes, consultas, orçamentos)
-    - STATUS: PENDENTE
+    - Solução: dividido em pacientes.py, consultas.py, orcamento.py
+    - STATUS: CONCLUIDO
 
 [ ] 3. ZERO TESTES, LINTING E TYPE CHECKING
     - Sem cobertura de testes

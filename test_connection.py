@@ -1,4 +1,4 @@
-from database.models import criar_paciente, listar_pacientes
+from database.pacientes import criar_paciente, listar_pacientes
 
 # Testa criar um paciente
 print("Criando paciente de teste...")

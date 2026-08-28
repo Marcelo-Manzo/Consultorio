@@ -1,14 +1,13 @@
 import customtkinter as ctk
-from database.models import (
+from database.consultas import (
     criar_consulta, 
     listar_consultas_com_paciente_por_data, 
-    buscar_paciente_por_nome, 
     deletar_consulta, 
     update_consulta, 
     listar_tratamentos, 
-    criar_orcamento, 
-    update_orcamento_por_consulta
 )
+from database.pacientes import buscar_paciente_por_nome
+from database.orcamento import criar_orcamento, update_orcamento_por_consulta
 from datetime import datetime, timedelta
 
 # Variável de controle fora da função para reter o valor entre os redesenhos da tela

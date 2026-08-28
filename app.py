@@ -1,7 +1,7 @@
 
 import customtkinter as ctk
 from views import pacientes, consultas, agenda_Semanal, faltantes, orcamento
-from database.models import buscar_consulta_Atual
+from database.consultas import buscar_consulta_Atual
 # IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
 from datetime import datetime

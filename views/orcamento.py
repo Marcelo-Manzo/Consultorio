@@ -1,7 +1,7 @@
 import calendar
 from datetime import datetime
 import customtkinter as ctk
-from database.models import lista_orcamentos_por_status_data, atualizar_status_orcamento
+from database.orcamento import lista_orcamentos_por_status_data, atualizar_status_orcamento
 import os
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter

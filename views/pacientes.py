@@ -1,14 +1,14 @@
 import re
 import customtkinter as ctk
-from database.models import (
+from database.pacientes import (
     buscar_paciente_por_cpf,
     buscar_paciente_por_nome,
     criar_paciente,
     atualizar_paciente,
     listar_pacientes,
     excluir_paciente_por_id,
-    listar_consultas_paciente,
 )
+from database.consultas import listar_consultas_paciente
 from validate_docbr import CPF
 
 
