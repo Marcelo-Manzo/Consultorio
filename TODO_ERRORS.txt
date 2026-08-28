@@ -28,6 +28,9 @@ LISTA DE PROBLEMAS - Consultorio
     - "@MARCELO/Consultorio" fixado no código
     - App quebra em qualquer outra máquina
     - Solução: movido para .env com python-dotenv
+    pega o endereco do banco do .env
+        commit do dia 29/08
+
     - STATUS: CONCLUIDO
 
 [ ] 6. TIPOS DE RETORNO INCONSISTENTES
