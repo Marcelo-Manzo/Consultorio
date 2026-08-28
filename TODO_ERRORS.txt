@@ -6,6 +6,7 @@ LISTA DE PROBLEMAS - Consultorio
     - get_db() retorna antes do finally, sessões nunca são fechadas
     - Causa connection leaks que travam o app com uso prolongado
     - STATUS: CONCLUIDO
+    commit do dia 29/08
 
 [ ] 2. GOD FILE (database/models.py - 413 linhas)
     - Todas as 25+ funções de banco em um único arquivo
