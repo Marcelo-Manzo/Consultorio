@@ -15,6 +15,7 @@ SessionLocal = sessionmaker(bind=engine)
 def get_db():
     db = SessionLocal()
     try:
+        #antes com o return a func encerrava e nunca fechava a connection, agora com o yeld, ela retorna sem encerrar.
         yield db
     finally:
         db.close()

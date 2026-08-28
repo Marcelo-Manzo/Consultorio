@@ -5,6 +5,7 @@ from .connection import get_db
 # ==================== PACIENTES ====================
 
 def criar_paciente(nome, telefone, cpf):
+    #com o with alem de economizar linha, finaliza a func apos o termino
     with get_db() as db:
         query = text("""
             INSERT INTO Pacientes (nome, telefone, cpf)
