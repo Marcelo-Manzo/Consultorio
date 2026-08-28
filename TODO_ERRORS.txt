@@ -24,17 +24,11 @@ LISTA DE PROBLEMAS - Consultorio
     - Sem benefícios do ORM (type safety, migrations, schema)
     - STATUS: PENDENTE
 
-[ ] 5. CONNECTION STRING HARDCODED (database/connection.py:4)
+[x] 5. CONNECTION STRING HARDCODED (database/connection.py:4)
     - "@MARCELO/Consultorio" fixado no código
     - App quebra em qualquer outra máquina
-    - Sem suporte a .env
-    Os Benefícios PerdidosO texto destaca que o projeto perdeu as principais vantagens de usar um ORM:
-    Type Safety (Segurança de Tipos): O editor de código não consegue validar se as colunas ou tabelas chamadas no SQL puro realmente existem, aumentando a chance de erros de digitação em produção.
-
-    Migrations (Migrações): O projeto não usa ferramentas automáticas (como o Alembic) para versionar, criar ou alterar as tabelas do banco de dados de forma organizada.
-    
-    Schema (Esquema): Não há modelos em código Python que definam visualmente a estrutura das tabelas, chaves primárias e relacionamentos do banco de dados.
-    - STATUS: PENDENTE
+    - Solução: movido para .env com python-dotenv
+    - STATUS: CONCLUIDO
 
 [ ] 6. TIPOS DE RETORNO INCONSISTENTES
     - Algumas queries retornam Row objects, outras dicts

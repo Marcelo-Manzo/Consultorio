@@ -1,3 +1,6 @@
 sqlalchemy
 customtkinter
 pyodbc
+reportlab
+validate-docbr
+python-dotenv

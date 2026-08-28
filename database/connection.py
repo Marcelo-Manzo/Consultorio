@@ -1,8 +1,12 @@
 from contextlib import contextmanager
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import os
 
-DATABASE_URL = "mssql+pyodbc://@MARCELO/Consultorio?driver=ODBC+Driver+17+for+SQL+Server&trusted_connection=yes"
+load_dotenv()
+
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(bind=engine)
