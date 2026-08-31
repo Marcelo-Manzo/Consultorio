@@ -1,15 +1,17 @@
 import re
+
 import customtkinter as ctk
+from validate_docbr import CPF
+
+from database.consultas import listar_consultas_paciente
 from database.pacientes import (
+    atualizar_paciente,
     buscar_paciente_por_cpf,
     buscar_paciente_por_nome,
     criar_paciente,
-    atualizar_paciente,
-    listar_pacientes,
     excluir_paciente_por_id,
+    listar_pacientes,
 )
-from database.consultas import listar_consultas_paciente
-from validate_docbr import CPF
 
 
 def mostrar(parent):
@@ -35,17 +37,14 @@ def mostrar(parent):
         frame_header.pack(fill="x", padx=20, pady=(15, 5))
 
         ctk.CTkLabel(
-            frame_header, 
-            text=f"📋 {paciente.nome}", 
-            font=("Segoe UI", 16, "bold"),
-            text_color="#ffffff"
+            frame_header, text=f"📋 {paciente.nome}", font=("Segoe UI", 16, "bold"), text_color="#ffffff"
         ).pack(anchor="w")
 
         ctk.CTkLabel(
-            frame_header, 
-            text=f"CPF: {paciente.cpf}  •  {paciente.telefone}", 
+            frame_header,
+            text=f"CPF: {paciente.cpf}  •  {paciente.telefone}",
             font=("Segoe UI", 11),
-            text_color="#9ca3af"
+            text_color="#9ca3af",
         ).pack(anchor="w", pady=(2, 0))
 
         # Divisor visual
@@ -63,38 +62,28 @@ def mostrar(parent):
                 container_consultas,
                 text="Nenhuma consulta registrada para este paciente.",
                 font=("Segoe UI", 12, "italic"),
-                text_color="#6b7280"
+                text_color="#6b7280",
             ).pack(pady=40)
             return
 
         # Lista de cards estilizados
         for c in consultas:
             card_historico = ctk.CTkFrame(
-                container_consultas, 
-                fg_color="#25262b", 
-                border_width=1, 
-                border_color="#333438", 
-                corner_radius=8
+                container_consultas, fg_color="#25262b", border_width=1, border_color="#333438", corner_radius=8
             )
             card_historico.pack(fill="x", padx=5, pady=4)
 
             frame_info = ctk.CTkFrame(card_historico, fg_color="transparent")
             frame_info.pack(side="left", fill="both", expand=True, padx=12, pady=10)
 
-            ctk.CTkLabel(
-                frame_info,
-                text=c.tratamento,
-                font=("Segoe UI", 13, "bold"),
-                text_color="#e5e7eb"
-            ).pack(anchor="w")
+            ctk.CTkLabel(frame_info, text=c.tratamento, font=("Segoe UI", 13, "bold"), text_color="#e5e7eb").pack(
+                anchor="w"
+            )
 
-            data_formatada = c.data.strftime('%d/%m/%Y às %H:%M')
-            ctk.CTkLabel(
-                frame_info,
-                text=f"📅 {data_formatada}",
-                font=("Segoe UI", 11),
-                text_color="#9ca3af"
-            ).pack(anchor="w", pady=(2, 0))
+            data_formatada = c.data.strftime("%d/%m/%Y às %H:%M")
+            ctk.CTkLabel(frame_info, text=f"📅 {data_formatada}", font=("Segoe UI", 11), text_color="#9ca3af").pack(
+                anchor="w", pady=(2, 0)
+            )
 
             frame_valor = ctk.CTkFrame(card_historico, fg_color="transparent")
             frame_valor.pack(side="right", anchor="e", padx=12, pady=10)
@@ -103,17 +92,14 @@ def mostrar(parent):
                 frame_valor,
                 text=f"R$ {c.valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."),
                 font=("Segoe UI", 13, "bold"),
-                text_color="#4ade80"
+                text_color="#4ade80",
             ).pack(anchor="e")
 
             badge = ctk.CTkFrame(frame_valor, fg_color="#1e293b", corner_radius=4)
             badge.pack(anchor="e", pady=(3, 0))
 
             ctk.CTkLabel(
-                badge,
-                text=c.metodo_pagamento.upper(),
-                font=("Segoe UI", 9, "bold"),
-                text_color="#60a5fa"
+                badge, text=c.metodo_pagamento.upper(), font=("Segoe UI", 9, "bold"), text_color="#60a5fa"
             ).pack(padx=6, pady=2)
 
     def deletar_paciente(paciente_id):
@@ -122,8 +108,7 @@ def mostrar(parent):
             atualizar_lista()
         except Exception:
             resultado_label_busca.configure(
-                text="❌ Não é possível excluir: o paciente possui consultas registradas.",
-                text_color="#f87171"
+                text="❌ Não é possível excluir: o paciente possui consultas registradas.", text_color="#f87171"
             )
 
     # =========================================================================
@@ -176,19 +161,19 @@ def mostrar(parent):
         def aplicar_correcao_nome(event):
             widget = event.widget
             texto_atual = widget.get()
-            
+
             palavras = texto_atual.split(" ")
             excecoes = {"de", "da", "do", "dos", "das", "e"}
-            
+
             palavras_formatadas = []
             for i, p in enumerate(palavras):
                 if p.lower() in excecoes and i > 0:
                     palavras_formatadas.append(p.lower())
                 else:
                     palavras_formatadas.append(p.capitalize())
-                    
+
             texto_formatado = " ".join(palavras_formatadas)
-            
+
             if texto_atual != texto_formatado:
                 pos_cursor = widget.index(ctk.INSERT)
                 widget.delete(0, "end")
@@ -234,7 +219,7 @@ def mostrar(parent):
             if texto_atual != tel_formatado:
                 widget.delete(0, "end")
                 widget.insert(0, tel_formatado)
-                
+
         nome_entry.bind("<KeyRelease>", aplicar_correcao_nome)
         cpf_entry.bind("<KeyRelease>", aplicar_mascara_cpf)
         telefone_entry.bind("<KeyRelease>", aplicar_mascara_telefone)
@@ -334,7 +319,9 @@ def mostrar(parent):
     frame_container_lista = ctk.CTkFrame(parent, fg_color="#141517", border_width=1, border_color="#242528")
     frame_container_lista.pack(fill="both", expand=True, padx=25, pady=(0, 20))
 
-    resultado_label_busca = ctk.CTkLabel(frame_container_lista, text="Listando todos os pacientes", font=("Segoe UI", 12), text_color="#9ca3af")
+    resultado_label_busca = ctk.CTkLabel(
+        frame_container_lista, text="Listando todos os pacientes", font=("Segoe UI", 12), text_color="#9ca3af"
+    )
     resultado_label_busca.pack(anchor="w", padx=15, pady=(10, 5))
 
     lista_frame = ctk.CTkScrollableFrame(frame_container_lista, fg_color="transparent")
@@ -348,7 +335,7 @@ def mostrar(parent):
 
         if not pacientes:
             resultado_label_busca.configure(text="❌ Nenhum paciente encontrado.", text_color="#f87171")
-            
+
             # Estado vazio dentro da lista
             frame_vazio = ctk.CTkFrame(lista_frame, fg_color="transparent")
             frame_vazio.pack(pady=30)
@@ -356,7 +343,7 @@ def mostrar(parent):
                 frame_vazio,
                 text="Nenhum paciente cadastrado ou encontrado.",
                 font=("Segoe UI", 12, "italic"),
-                text_color="#6b7280"
+                text_color="#6b7280",
             ).pack()
             return
 
@@ -365,12 +352,7 @@ def mostrar(parent):
         # 2. Renderização dos Cards dos Pacientes
         for p in pacientes:
             card = ctk.CTkFrame(
-                lista_frame, 
-                fg_color="#25262b", 
-                border_width=1, 
-                border_color="#333438", 
-                corner_radius=8,
-                cursor="hand2"
+                lista_frame, fg_color="#25262b", border_width=1, border_color="#333438", corner_radius=8, cursor="hand2"
             )
             card.pack(fill="x", padx=5, pady=4)
 
@@ -378,21 +360,13 @@ def mostrar(parent):
             frame_info.pack(side="left", fill="both", expand=True, padx=12, pady=10)
 
             lbl_nome = ctk.CTkLabel(
-                frame_info,
-                text=f"👤 {p.nome}",
-                font=("Segoe UI", 13, "bold"),
-                text_color="#e5e7eb",
-                cursor="hand2"
+                frame_info, text=f"👤 {p.nome}", font=("Segoe UI", 13, "bold"), text_color="#e5e7eb", cursor="hand2"
             )
             lbl_nome.pack(anchor="w")
 
             info_secundaria = f"CPF: {p.cpf}  •  📞 {p.telefone}"
             lbl_detalhes = ctk.CTkLabel(
-                frame_info,
-                text=info_secundaria,
-                font=("Segoe UI", 11),
-                text_color="#9ca3af",
-                cursor="hand2"
+                frame_info, text=info_secundaria, font=("Segoe UI", 11), text_color="#9ca3af", cursor="hand2"
             )
             lbl_detalhes.pack(anchor="w", pady=(2, 0))
 
@@ -400,8 +374,8 @@ def mostrar(parent):
             frame_acoes.pack(side="right", padx=10, pady=10)
 
             btn_editar = ctk.CTkButton(
-                frame_acoes, 
-                text="Editar", 
+                frame_acoes,
+                text="Editar",
                 command=lambda paciente_obj=p: abrir_modal_paciente(paciente_obj),
                 width=60,
                 height=28,
@@ -409,20 +383,20 @@ def mostrar(parent):
                 corner_radius=5,
                 fg_color="#1e293b",
                 hover_color="#334155",
-                text_color="#60a5fa"
+                text_color="#60a5fa",
             )
             btn_editar.pack(side="left", padx=3)
 
             btn_excluir = ctk.CTkButton(
-                frame_acoes, 
-                text="❌", 
-                command=lambda id_p=p.id: deletar_paciente(id_p), 
+                frame_acoes,
+                text="❌",
+                command=lambda id_p=p.id: deletar_paciente(id_p),
                 width=28,
                 height=28,
                 corner_radius=5,
                 fg_color="#361a1a",
                 hover_color="#542323",
-                text_color="#f87171"
+                text_color="#f87171",
             )
             btn_excluir.pack(side="left", padx=3)
 
@@ -438,7 +412,7 @@ def mostrar(parent):
 
         widget = event.widget
         texto_atual = widget.get()
-        
+
         # Se o texto começar com número, aplica a máscara de CPF
         if texto_atual and texto_atual[0].isdigit():
             numeros = re.sub(r"\D", "", texto_atual)[:11]
@@ -464,7 +438,7 @@ def mostrar(parent):
             return
 
         apenas_numeros = re.sub(r"\D", "", termo)
-        
+
         # Se houver números ou caracteres de CPF, realiza a busca por CPF
         if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
             encontrados = buscar_paciente_por_cpf(termo)

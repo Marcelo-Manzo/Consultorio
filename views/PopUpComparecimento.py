@@ -1,37 +1,40 @@
-import customtkinter as ctk
-from database.consultas import buscar_consulta_Atual, marcar_comparecimento
-from database.orcamento import buscar_orcamento_por_id_consulta, atualizar_status_orcamento, deletar_orcamento
 from datetime import datetime
+
+import customtkinter as ctk
+
+from database.consultas import buscar_consulta_Atual, marcar_comparecimento
+from database.orcamento import buscar_orcamento_por_id_consulta, deletar_orcamento
+
 
 def mostrar(parent):
     """
     Função principal que gerencia o pop-up de notificação.
     Recebe 'parent' (a janela principal do app) para poder centralizar o pop-up corretamente.
     """
-    
+
     def abrir_notificacao_comparecimento(data_e_horario):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
-        orcamentos= buscar_orcamento_por_id_consulta(consulta["id"])
+        orcamentos = buscar_orcamento_por_id_consulta(consulta["id"])
         if orcamentos is not None:
             orcamento = orcamentos[0]
-        
+
         print(orcamento)
 
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
         if not consulta:
             print("consulta nao encontrada")
-        
+
         print("consulta encontrada")
 
-        #==================== MUDANÇA DE ESTADO ====================
-        #muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.
+        # ==================== MUDANÇA DE ESTADO ====================
+        # muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.
         marcar_comparecimento(consulta["id"], status=4)
 
         # 2. Criação da Janela Pop-up (Toplevel)
         popup = ctk.CTkToplevel(parent, fg_color="#1e1f22")
         popup.title("Confirmação de Horário")
-        
+
         # Configurações de tamanho e centralização na tela
         largura_janela = 420
         altura_janela = 200
@@ -39,16 +42,15 @@ def mostrar(parent):
         altura_tela = popup.winfo_screenheight()
         posicao_x = int((largura_tela / 2) - (largura_janela / 2))
         posicao_y = int((altura_tela / 2) - (altura_janela / 2))
-        
+
         popup.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
         popup.resizable(False, False)
-        
+
         # Faz a janela ficar por cima de tudo e captura o foco (modal)
         popup.attributes("-topmost", True)
         popup.grab_set()
 
-
-        #==================== FUNÇÕES DE AÇÃO ====================
+        # ==================== FUNÇÕES DE AÇÃO ====================
 
         def responder_sim():
             # Status 1 = Compareceu
@@ -68,27 +70,32 @@ def mostrar(parent):
             else:
                 print("Orcamento inexistente")
 
+        # ==================== ELEMENTOS VISUAIS ====================
 
-        #==================== ELEMENTOS VISUAIS ====================
-        
         # Ícone sutil ou Header de Alerta
-        lbl_alerta = ctk.CTkLabel(popup, text="⏰ HORÁRIO DA CONSULTA", font=("Segoe UI", 11, "bold"), text_color="#1f6aa5")
+        lbl_alerta = ctk.CTkLabel(
+            popup, text="⏰ HORÁRIO DA CONSULTA", font=("Segoe UI", 11, "bold"), text_color="#1f6aa5"
+        )
         lbl_alerta.pack(pady=(15, 5))
 
         # Formatação do horário para exibição amigável
         # (Ajuste o formato caso seu banco retorne string ou objeto datetime direto)
-        horario_formatado = consulta["data"].strftime("%H:%M") if isinstance(consulta["data"], datetime) else str(consulta["data"])[11:16]
+        horario_formatado = (
+            consulta["data"].strftime("%H:%M")
+            if isinstance(consulta["data"], datetime)
+            else str(consulta["data"])[11:16]
+        )
 
         # Texto Principal com o Nome do Paciente e Tratamento
         texto_pergunta = f"O paciente {consulta['nome'].split()[0]} chegou para a consulta de {consulta['tratamento']} das {horario_formatado}?"
-        
+
         lbl_pergunta = ctk.CTkLabel(
-            popup, 
-            text=texto_pergunta, 
-            font=("Segoe UI", 14), 
+            popup,
+            text=texto_pergunta,
+            font=("Segoe UI", 14),
             text_color="#ffffff",
-            wraplength=380, # Faz o texto quebrar linha sozinho se o nome for grande
-            justify="center"
+            wraplength=380,  # Faz o texto quebrar linha sozinho se o nome for grande
+            justify="center",
         )
         lbl_pergunta.pack(pady=(5, 20), padx=20)
 
@@ -98,32 +105,31 @@ def mostrar(parent):
 
         # BOTÃO NÃO: Estilo mais discreto/cinza escuro, focado em cancelar
         btn_nao = ctk.CTkButton(
-            frame_botoes, 
-            text="Não compareceu", 
+            frame_botoes,
+            text="Não compareceu",
             command=responder_nao,
             width=150,
             height=35,
             font=("Segoe UI", 12, "bold"),
             fg_color="#2b2b2b",
             hover_color="#3a3a3a",
-            text_color="#ff4a4a" # Texto em vermelho para dar a pista visual do erro/falta
+            text_color="#ff4a4a",  # Texto em vermelho para dar a pista visual do erro/falta
         )
         btn_nao.pack(side="left", padx=10)
 
         # BOTÃO SIM: Destacado em verde ou azul padrão do sistema
         btn_sim = ctk.CTkButton(
-            frame_botoes, 
-            text="Sim, compareceu", 
+            frame_botoes,
+            text="Sim, compareceu",
             command=responder_sim,
             width=150,
             height=35,
             font=("Segoe UI", 12, "bold"),
-            fg_color="#1a3a22", # Verde escuro cirúrgico/sutil
+            fg_color="#1a3a22",  # Verde escuro cirúrgico/sutil
             hover_color="#122818",
-            text_color="#2ecc71" # Texto verde claro brilhante para sucesso
+            text_color="#2ecc71",  # Texto verde claro brilhante para sucesso
         )
         btn_sim.pack(side="left", padx=10)
-
 
     # Retorna a função interna caso você precise chamá-la de fora mapeando o relógio
     return abrir_notificacao_comparecimento

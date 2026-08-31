@@ -1,16 +1,18 @@
 import calendar
+import os
 from datetime import datetime
-import customtkinter as ctk
-from database.orcamento import lista_orcamentos_por_status_data, atualizar_status_orcamento
-import os
-from reportlab.lib import colors
-from reportlab.lib.pagesizes import letter
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-import os
 from tkinter import filedialog, messagebox
 
+import customtkinter as ctk
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import letter
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+
+from database.orcamento import atualizar_status_orcamento, lista_orcamentos_por_status_data
+
 controle_mensal = {"deslocamento": 0}
+
 
 def Helper_get_attr(item, atributo):
     """Lida dinamicamente se o retorno do SQL for Dict ou Objeto/Row."""
@@ -18,31 +20,27 @@ def Helper_get_attr(item, atributo):
         return item.get(atributo)
     return getattr(item, atributo, None)
 
+
 def gerar_pdf_orcamentos(lista_orcamentos, caminho_saida="relatorio_orcamentos.pdf"):
     doc = SimpleDocTemplate(
-        caminho_saida,
-        pagesize=letter,
-        rightMargin=20,
-        leftMargin=20,
-        topMargin=20,
-        bottomMargin=20
+        caminho_saida, pagesize=letter, rightMargin=20, leftMargin=20, topMargin=20, bottomMargin=20
     )
     elements = []
     styles = getSampleStyleSheet()
 
     # Título
     titulo_style = ParagraphStyle(
-        'TituloStyle',
-        parent=styles['Heading1'],
+        "TituloStyle",
+        parent=styles["Heading1"],
         fontSize=16,
         leading=20,
         textColor=colors.HexColor("#1e1f22"),
-        spaceAfter=10
+        spaceAfter=10,
     )
     elements.append(Paragraph("Relatório Financeiro de Orçamentos", titulo_style))
 
     data_emissao = datetime.now().strftime("%d/%m/%Y às %H:%M")
-    sub_style = ParagraphStyle('SubStyle', parent=styles['Normal'], fontSize=9, textColor=colors.gray)
+    sub_style = ParagraphStyle("SubStyle", parent=styles["Normal"], fontSize=9, textColor=colors.gray)
     elements.append(Paragraph(f"Emitido em: {data_emissao}", sub_style))
     elements.append(Spacer(1, 12))
 
@@ -69,23 +67,28 @@ def gerar_pdf_orcamentos(lista_orcamentos, caminho_saida="relatorio_orcamentos.p
 
     # Tabela com colWidths ajustado (Soma = ~570pt, ideal para página Letter/A4)
     tabela = Table(dados_tabela, colWidths=[35, 50, 130, 95, 80, 65, 65])
-    tabela.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#2b2d31")),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('TOPPADDING', (0, 0), (-1, 0), 6),
-        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-        ('ALIGN', (4, 0), (4, -1), 'RIGHT'),  # Alinha o valor monetário à direita
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e0e0")),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
-    ]))
+    tabela.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2b2d31")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, 0), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+                ("TOPPADDING", (0, 0), (-1, 0), 6),
+                ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("ALIGN", (4, 0), (4, -1), "RIGHT"),  # Alinha o valor monetário à direita
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e0e0e0")),
+                ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+                ("FONTSIZE", (0, 1), (-1, -1), 8),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+            ]
+        )
+    )
 
     elements.append(tabela)
     doc.build(elements)
+
 
 def mostrar(parent):
     # Limpa o container atual antes de renderizar
@@ -96,17 +99,11 @@ def mostrar(parent):
         """Exporta os dados filtrados para uma planilha Excel."""
         pass
 
-        
-
     def atualizar_orcamento():
 
         def exportar_em_pdf():
             orcamentos = on_filtrar_click()
-            
-            # 1. Pega os filtros atuais da tela
-            mapa_status = {"Todos": None, "Pendente": 0, "Aprovado": 1, "Cancelado": 2}
-            status_id = mapa_status.get(combo_status.get(), None)
-            
+
             # 2. Busca os orçamentos filtrados
             # (Ajuste o nome da sua função de busca do banco se necessário)
             orcamentos = on_filtrar_click()
@@ -117,12 +114,12 @@ def mostrar(parent):
 
             # 3. Abre a janela do Windows para escolher onde salvar
             nome_padrao = f"Relatorio_Orcamentos_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
-            
+
             caminho_arquivo = filedialog.asksaveasfilename(
                 defaultextension=".pdf",
                 filetypes=[("Documento PDF", "*.pdf")],
                 title="Salvar Relatório Financeiro",
-                initialfile=nome_padrao
+                initialfile=nome_padrao,
             )
 
             # 4. Se o usuário escolheu um local e não cancelou a janela
@@ -130,16 +127,16 @@ def mostrar(parent):
                 try:
                     # Chama a função do ReportLab que criamos
                     gerar_pdf_orcamentos(orcamentos, caminho_arquivo)
-                    
+
                     # Notifica o usuário
                     messagebox.showinfo("Sucesso", "Relatório PDF gerado com sucesso!")
-                    
+
                     # Abre o PDF automaticamente no leitor padrão do Windows
                     os.startfile(caminho_arquivo)
-                    
+
                 except Exception as e:
                     messagebox.showerror("Erro ao Gerar PDF", f"Ocorreu um erro:\n{str(e)}")
-            
+
         def on_aprovar_click(orcamento_id):
             status = 1
             atualizar_status_orcamento(orcamento_id, status)
@@ -219,7 +216,7 @@ def mostrar(parent):
 
             dict_cards_ui[status_id] = {"qtd": lbl_qtd, "valor": lbl_val}
 
-       # =========================================================================
+        # =========================================================================
         # 2. BARRA DE FILTROS E AÇÕES (ATUALIZADA)
         # =========================================================================
         frame_filtros = ctk.CTkFrame(parent, fg_color="transparent")
@@ -245,14 +242,18 @@ def mostrar(parent):
         # Data Inicial
         col_data_inicio = ctk.CTkFrame(subframe_esquerda, fg_color="transparent")
         col_data_inicio.pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(col_data_inicio, text="Data Inicial:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        ctk.CTkLabel(col_data_inicio, text="Data Inicial:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(
+            anchor="w"
+        )
         entry_data_inicio = ctk.CTkEntry(col_data_inicio, placeholder_text="DD/MM/AAAA", width=110, fg_color="#2b2b2b")
         entry_data_inicio.pack(anchor="w")
 
         # Data Final
         col_data_fim = ctk.CTkFrame(subframe_esquerda, fg_color="transparent")
         col_data_fim.pack(side="left", padx=(0, 10))
-        ctk.CTkLabel(col_data_fim, text="Data Final:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
+        ctk.CTkLabel(col_data_fim, text="Data Final:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(
+            anchor="w"
+        )
         entry_data_fim = ctk.CTkEntry(col_data_fim, placeholder_text="DD/MM/AAAA", width=110, fg_color="#2b2b2b")
         entry_data_fim.pack(anchor="w")
 
@@ -304,7 +305,7 @@ def mostrar(parent):
         frame_tabela = ctk.CTkScrollableFrame(parent, fg_color="#141517", corner_radius=10)
         frame_tabela.grid(row=2, column=0, padx=20, pady=(10, 20), sticky="nsew")
 
-        headers = ["ID", "Consulta ID", "Paciente", "CPF","Valor", "Data", "Status", "Ações"]
+        headers = ["ID", "Consulta ID", "Paciente", "CPF", "Valor", "Data", "Status", "Ações"]
         for col, text in enumerate(headers):
             lbl = ctk.CTkLabel(frame_tabela, text=text, font=("Segoe UI", 11, "bold"), text_color="#8d9c93")
             lbl.grid(row=0, column=col, padx=12, pady=10, sticky="w")
@@ -321,13 +322,12 @@ def mostrar(parent):
             }
 
             for item in lista_orcamentos:
-                #funciona tantto com dicionario quanto com object
+                # funciona tantto com dicionario quanto com object
                 st = Helper_get_attr(item, "status")
                 vl = float(Helper_get_attr(item, "valor") or 0)
                 if st in totais:
                     totais[st]["qtd"] += 1
                     totais[st]["valor"] += vl
-
 
             # nao faco ideia do que acontece aqui
             for st_id, data in totais.items():
@@ -351,19 +351,40 @@ def mostrar(parent):
                 status = Helper_get_attr(o, "status")
 
                 # Grid das Colunas
-                ctk.CTkLabel(frame_tabela, text=str(o_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=0, padx=12, pady=6, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=str(consulta_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=1, padx=12, pady=6, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=str(paciente_nome), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=2, padx=12, pady=6, sticky="w")
-                ctk.CTkLabel(frame_tabela, text=str(paciente_cpf), font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=3, padx=12, pady=6, sticky="w")
+                ctk.CTkLabel(frame_tabela, text=str(o_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=0, padx=12, pady=6, sticky="w"
+                )
+                ctk.CTkLabel(frame_tabela, text=str(consulta_id), font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=1, padx=12, pady=6, sticky="w"
+                )
+                ctk.CTkLabel(frame_tabela, text=str(paciente_nome), font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=2, padx=12, pady=6, sticky="w"
+                )
+                ctk.CTkLabel(frame_tabela, text=str(paciente_cpf), font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=3, padx=12, pady=6, sticky="w"
+                )
 
                 val_str = f"R$ {valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-                ctk.CTkLabel(frame_tabela, text=val_str, font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=4, padx=12, pady=6, sticky="w")
+                ctk.CTkLabel(frame_tabela, text=val_str, font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=4, padx=12, pady=6, sticky="w"
+                )
 
-                dt_fmt = data_criacao.strftime("%d/%m/%Y %H:%M") if hasattr(data_criacao, "strftime") else str(data_criacao)[:16]
-                ctk.CTkLabel(frame_tabela, text=dt_fmt, font=("Segoe UI", 12), text_color="#cfd0d4").grid(row=index, column=5, padx=12, pady=6, sticky="w")
+                dt_fmt = (
+                    data_criacao.strftime("%d/%m/%Y %H:%M")
+                    if hasattr(data_criacao, "strftime")
+                    else str(data_criacao)[:16]
+                )
+                ctk.CTkLabel(frame_tabela, text=dt_fmt, font=("Segoe UI", 12), text_color="#cfd0d4").grid(
+                    row=index, column=5, padx=12, pady=6, sticky="w"
+                )
 
                 status_map = {0: "Pendente", 1: "Aprovado", 2: "Cancelado"}
-                ctk.CTkLabel(frame_tabela, text=status_map.get(status, str(status)), font=("Segoe UI", 12, "bold"), text_color="#cfd0d4").grid(row=index, column=6, padx=12, pady=6, sticky="w")
+                ctk.CTkLabel(
+                    frame_tabela,
+                    text=status_map.get(status, str(status)),
+                    font=("Segoe UI", 12, "bold"),
+                    text_color="#cfd0d4",
+                ).grid(row=index, column=6, padx=12, pady=6, sticky="w")
 
                 if status == 0:
                     # Botões de Ação na Tabela (Corrigidos para aceitar id direto)
@@ -416,10 +437,7 @@ def mostrar(parent):
 
             # Filtro por Nome (se houver algo digitado)
             if termo_busca:
-                orcamentos = [
-                    o for o in orcamentos 
-                    if termo_busca in str(Helper_get_attr(o, "paciente_nome")).lower()
-                ]
+                orcamentos = [o for o in orcamentos if termo_busca in str(Helper_get_attr(o, "paciente_nome")).lower()]
 
             renderizar_tabela(orcamentos)
             atualizar_cards_resumo(orcamentos)

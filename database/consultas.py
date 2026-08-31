@@ -1,4 +1,5 @@
 from sqlalchemy import text
+
 from .connection import get_db
 
 
@@ -9,17 +10,21 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
             OUTPUT INSERTED.id
             VALUES (:paciente_id, :tratamento, :data, :valor, :metodo_pagamento)
         """)
-        result = db.execute(query, {
-            "paciente_id": paciente_id,
-            "tratamento": treatment,
-            "data": data_e_horario,
-            "valor": valor,
-            "metodo_pagamento": metodo_pagamento,
-            "compareceu": compareceu
-        })
+        result = db.execute(
+            query,
+            {
+                "paciente_id": paciente_id,
+                "tratamento": treatment,
+                "data": data_e_horario,
+                "valor": valor,
+                "metodo_pagamento": metodo_pagamento,
+                "compareceu": compareceu,
+            },
+        )
         consulta_id = result.scalar()
         db.commit()
         return consulta_id
+
 
 def buscar_consulta_por_id(consulta_id):
     with get_db() as db:
@@ -27,11 +32,13 @@ def buscar_consulta_por_id(consulta_id):
         result = db.execute(query, {"id": consulta_id})
         return result.fetchone()
 
+
 def buscar_consulta_por_id_dict(consulta_id):
     with get_db() as db:
         query = text("SELECT * FROM Consultas WHERE id = :id")
         result = db.execute(query, {"id": consulta_id})
         return result.mappings().fetchone()
+
 
 def buscar_consulta_Atual(data_e_horario):
     with get_db() as db:
@@ -44,11 +51,13 @@ def buscar_consulta_Atual(data_e_horario):
         result = db.execute(query, {"data_param": data_e_horario})
         return result.mappings().fetchone()
 
+
 def deletar_consulta(consulta_id):
     with get_db() as db:
         query = text("DELETE FROM Consultas WHERE id = :consulta_id")
         db.execute(query, {"consulta_id": consulta_id})
         db.commit()
+
 
 def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):
     with get_db() as db:
@@ -60,14 +69,18 @@ def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagame
                 metodo_pagamento = :metodo_pagamento
             WHERE id = :consulta_id
         """)
-        db.execute(query, {
-            "consulta_id": consulta_id,
-            "tratamento": treatment,
-            "data": data_e_horario,
-            "valor": valor,
-            "metodo_pagamento": metodo_pagamento
-        })
+        db.execute(
+            query,
+            {
+                "consulta_id": consulta_id,
+                "tratamento": treatment,
+                "data": data_e_horario,
+                "valor": valor,
+                "metodo_pagamento": metodo_pagamento,
+            },
+        )
         db.commit()
+
 
 def listar_consultas_data(data):
     with get_db() as db:
@@ -78,6 +91,7 @@ def listar_consultas_data(data):
         """)
         result = db.execute(query, {"data": data})
         return result.fetchall()
+
 
 def listar_consultas_com_paciente_por_data(data_selecionada):
     with get_db() as db:
@@ -98,11 +112,13 @@ def listar_consultas_com_paciente_por_data(data_selecionada):
         """)
         return db.execute(query, {"data": data_selecionada}).mappings().all()
 
+
 def listar_consultas_paciente(paciente_id):
     with get_db() as db:
         query = text("SELECT * FROM Consultas WHERE paciente_id = :id ORDER BY data DESC")
         result = db.execute(query, {"id": paciente_id})
         return result.fetchall()
+
 
 def listar_faltas_data(data):
     with get_db() as db:
@@ -121,17 +137,20 @@ def listar_faltas_data(data):
         result = db.execute(query, {"data": data})
         return result.mappings().fetchall()
 
+
 def marcar_comparecimento(consulta_id, status=1):
     with get_db() as db:
         query = text("UPDATE Consultas SET compareceu = :status WHERE id = :id")
         db.execute(query, {"status": status, "id": consulta_id})
         db.commit()
 
+
 def marcar_pagamento(consulta_id, pago):
     with get_db() as db:
         query = text("UPDATE Consultas SET pago = :pago WHERE id = :id")
         db.execute(query, {"pago": pago, "id": consulta_id})
         db.commit()
+
 
 def listar_tratamentos():
     with get_db() as db:

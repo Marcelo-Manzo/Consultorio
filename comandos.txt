@@ -2,6 +2,7 @@ iniciar ambiente virtual: .venv\Scripts\activate
 pip install customtkinter
 pip install reportlab  
 pip install validate-docbr
+pip install ruff
 iniciar: python app.py
 
 commit
