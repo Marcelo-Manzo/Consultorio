@@ -3,7 +3,7 @@ from datetime import datetime
 import customtkinter as ctk
 
 from database.consultas import buscar_consulta_Atual
-from views import agenda_Semanal, consultas, faltantes, orcamento, pacientes
+from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes
 
 # IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
@@ -70,6 +70,17 @@ class App(ctk.CTk):
             hover_color="#070062",
         ).pack(pady=10)
 
+        ctk.CTkButton(
+            self.sidebar,
+            text="Debug",
+            font=fonte_clean,
+            command=self.mostrar_debug,
+            width=180,
+            fg_color="#361a1a",
+            hover_color="#542323",
+            text_color="#f87171",
+        ).pack(pady=10)
+
         # Frame principal onde as telas aparecem
         self.main_frame = ctk.CTkFrame(self, fg_color="transparent")
         self.main_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
@@ -127,8 +138,12 @@ class App(ctk.CTk):
         faltantes.mostrar(self.main_frame)
 
     def mostrar_orcamento(self):
+            self.limpar_frame()
+            orcamento.mostrar(self.main_frame)
+
+    def mostrar_debug(self):
         self.limpar_frame()
-        orcamento.mostrar(self.main_frame)
+        debug.mostrar(self.main_frame)
 
 
 if __name__ == "__main__":
