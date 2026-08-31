@@ -4,3 +4,7 @@ pyodbc
 reportlab
 validate-docbr
 python-dotenv
+
+# Dev dependencies
+ruff
+pytest

@@ -20,11 +20,13 @@ LISTA DE PROBLEMAS - Consultorio
     - Impossível detectar regressões
     - STATUS: PENDENTE
         Resumo
+
+        -- sao  programas que voce roda e mostra os seguintes erros:
     Ferramenta	   O que faz	             Por que usar
     Ruff	     Avisa problemas no código	Código limpo, sem imports mortos
 
     Mypy	     Verifica tipos dos parâmetros	Evita bugs de   tipos errados
-    
+
     Pytest	     Roda testes automatizados	Garante que nada quebrou
 
 [ ] 4. SQLAlchemy USADO ERRADO
