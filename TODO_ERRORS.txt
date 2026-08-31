@@ -4,7 +4,7 @@ LISTA DE PROBLEMAS - Consultorio
 
 [x] 1. BROKEN DATABASE SESSION (database/connection.py)
     - get_db() retorna antes do finally, sessões nunca são fechadas
-    - Causa connection leaks que travam o app com uso prolongado
+    - Causa connection leaks que travam o app com uso prolongado atravez do yeld
     - STATUS: CONCLUIDO
     commit do dia 29/08
 
