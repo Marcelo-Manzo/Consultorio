@@ -14,7 +14,7 @@ LISTA DE PROBLEMAS - Consultorio
     - STATUS: CONCLUIDO
     commit do dia 29/08
 
-[ ] 3. ZERO TESTES, LINTING E TYPE CHECKING
+[X] 3. ZERO TESTES, LINTING E TYPE CHECKING
     - Sem cobertura de testes
     - Sem análise estática (ruff, mypy)
     - Impossível detectar regressões
