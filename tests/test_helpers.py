@@ -1,6 +1,5 @@
 import re
 
-
 # ==================== eh_telefone_valido ====================
 # Função extraída de views/pacientes.py (definida dentro de mostrar())
 # Testada aqui porque não é importável do módulo original.

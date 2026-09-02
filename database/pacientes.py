@@ -1,67 +1,49 @@
-from sqlalchemy import text
-
 from .connection import get_db
+from .models import Paciente
 
 # ==================== PACIENTES ====================
 
 
 def criar_paciente(nome, telefone, cpf):
-    # com o with alem de economizar linha, finaliza a func apos o termino
     with get_db() as db:
-        query = text("""
-            INSERT INTO Pacientes (nome, telefone, cpf)
-            VALUES (:nome, :telefone, :cpf)
-        """)
-        db.execute(query, {"nome": nome, "telefone": telefone, "cpf": cpf})
+        paciente = Paciente(nome=nome, telefone=telefone, cpf=cpf)
+        db.add(paciente)
         db.commit()
 
 
 def atualizar_paciente(paciente_id, novo_nome, novo_telefone, novo_cpf):
     with get_db() as db:
-        query = text("""
-            UPDATE Pacientes
-            SET nome = :novo_nome,
-                telefone = :novo_telefone,
-                cpf = :novo_cpf
-            WHERE id = :paciente_id
-        """)
-        db.execute(
-            query,
-            {"paciente_id": paciente_id, "novo_nome": novo_nome, "novo_telefone": novo_telefone, "novo_cpf": novo_cpf},
-        )
-        db.commit()
+        paciente = db.query(Paciente).filter(Paciente.id == paciente_id).first()
+        if paciente:
+            paciente.nome = novo_nome
+            paciente.telefone = novo_telefone
+            paciente.cpf = novo_cpf
+            db.commit()
 
 
 def listar_pacientes():
     with get_db() as db:
-        query = text("SELECT * FROM Pacientes ORDER BY nome")
-        result = db.execute(query)
-        return result.fetchall()
+        return db.query(Paciente).order_by(Paciente.nome).all()
 
 
 def buscar_paciente_por_nome(nome):
     with get_db() as db:
-        query = text("SELECT * FROM Pacientes WHERE nome LIKE :nome")
-        result = db.execute(query, {"nome": f"%{nome}%"})
-        return result.fetchall()
+        return db.query(Paciente).filter(Paciente.nome.like(f"%{nome}%")).all()
 
 
 def buscar_paciente_por_cpf(cpf):
     with get_db() as db:
-        query = text("SELECT * FROM Pacientes WHERE cpf LIKE :cpf")
-        result = db.execute(query, {"cpf": f"%{cpf}%"})
-        return result.fetchall()
+        return db.query(Paciente).filter(Paciente.cpf.like(f"%{cpf}%")).all()
 
 
 def buscar_paciente_por_id(paciente_id):
     with get_db() as db:
-        query = text("SELECT * FROM Pacientes WHERE id = :id")
-        result = db.execute(query, {"id": paciente_id})
-        return result.fetchone()
+        return db.query(Paciente).filter(Paciente.id == paciente_id).first()
 
 
 def excluir_paciente_por_id(paciente_id):
     with get_db() as db:
-        query = text("DELETE FROM Pacientes WHERE id = :paciente_id")
-        db.execute(query, {"paciente_id": paciente_id})
-        db.commit()
+        paciente = db.query(Paciente).filter(Paciente.id == paciente_id).first()
+        if paciente:
+            db.delete(paciente)
+            db.commit()

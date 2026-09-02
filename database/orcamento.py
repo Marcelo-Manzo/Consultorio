@@ -1,147 +1,148 @@
-from sqlalchemy import text
+from datetime import datetime, timedelta
+
+from sqlalchemy import func
 
 from .connection import get_db
+from .models import Consulta, Orcamento, Paciente
 
 
 def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, status=0):
     with get_db() as db:
-        query = text("""
-            INSERT INTO Orcamentos (consulta_id, paciente_id, valor, forma_pagamento, status, data_criacao)
-            VALUES (:consulta_id, :paciente_id, :valor, :metodo, :status, :data_criacao)
-        """)
-        db.execute(
-            query,
-            {
-                "consulta_id": consulta_id,
-                "paciente_id": paciente_id,
-                "valor": valor,
-                "metodo": metodo,
-                "status": status,
-                "data_criacao": data_criacao,
-            },
+        orcamento = Orcamento(
+            consulta_id=consulta_id,
+            paciente_id=paciente_id,
+            valor=valor,
+            forma_pagamento=metodo,
+            status=status,
+            data_criacao=data_criacao,
         )
+        db.add(orcamento)
         db.commit()
 
 
 def update_orcamento_por_consulta(consulta_id, paciente_id, valor, forma_pagamento, status=0):
     with get_db() as db:
-        query = text("""
-            UPDATE Orcamentos 
-            SET paciente_id = :paciente_id,
-                valor = :valor,
-                forma_pagamento = :forma_pagamento,
-                status = :status
-            WHERE consulta_id = :consulta_id
-        """)
-        db.execute(
-            query,
-            {
-                "consulta_id": consulta_id,
-                "paciente_id": paciente_id,
-                "valor": valor,
-                "forma_pagamento": forma_pagamento,
-                "status": status,
-            },
+        orcamento = (
+            db.query(Orcamento).filter(Orcamento.consulta_id == consulta_id).first()
         )
-        db.commit()
+        if orcamento:
+            orcamento.paciente_id = paciente_id
+            orcamento.valor = valor
+            orcamento.forma_pagamento = forma_pagamento
+            orcamento.status = status
+            db.commit()
+
+
+def _inicio_fim_mes(mes, ano):
+    """Retorna (inicio, fim) do mês/ano como datetime.
+    Usa faixa [inicio, fim) para filtrar por mês de forma compatível com SQL Server
+    (func.extract não é suportado pelo SQL Server)."""
+    inicio = datetime(ano, mes, 1)
+    if mes == 12:
+        fim = datetime(ano + 1, 1, 1)
+    else:
+        fim = datetime(ano, mes + 1, 1)
+    return inicio, fim
 
 
 def listar_orcamentos_por_mes(mes, ano):
+    inicio, fim = _inicio_fim_mes(mes, ano)
     with get_db() as db:
-        query = text("""
-            SELECT 
-                o.id,
-                o.consulta_id,
-                o.paciente_id,
-                p.nome AS paciente_nome,
-                o.valor,
-                o.forma_pagamento,
-                o.status,
-                o.data_criacao
-            FROM Orcamentos o
-            INNER JOIN Pacientes p ON o.paciente_id = p.id
-            WHERE MONTH(o.data_criacao) = :mes AND YEAR(o.data_criacao) = :ano
-            ORDER BY o.data_criacao DESC
-        """)
-        result = db.execute(query, {"mes": mes, "ano": ano})
-        return result.mappings().fetchall()
+        resultados = (
+            db.query(Orcamento, Paciente)
+            .join(Paciente, Orcamento.paciente_id == Paciente.id)
+            .filter(Orcamento.data_criacao >= inicio, Orcamento.data_criacao < fim)
+            .order_by(Orcamento.data_criacao.desc())
+            .all()
+        )
+        return [
+            {
+                "id": o.id,
+                "consulta_id": o.consulta_id,
+                "paciente_id": o.paciente_id,
+                "paciente_nome": p.nome,
+                "valor": o.valor,
+                "forma_pagamento": o.forma_pagamento,
+                "status": o.status,
+                "data_criacao": o.data_criacao,
+            }
+            for o, p in resultados
+        ]
 
 
 def atualizar_status_orcamento(orcamento_id, novo_status):
     with get_db() as db:
-        query = text("UPDATE Orcamentos SET status = :status WHERE id = :id")
-        db.execute(query, {"status": novo_status, "id": orcamento_id})
-        db.commit()
+        orcamento = db.query(Orcamento).filter(Orcamento.id == orcamento_id).first()
+        if orcamento:
+            orcamento.status = novo_status
+            db.commit()
 
 
 def obter_ganho_total_mes(mes, ano):
+    inicio, fim = _inicio_fim_mes(mes, ano)
     with get_db() as db:
-        query = text("""
-            SELECT COALESCE(SUM(valor), 0) AS total
-            FROM Orcamentos
-            WHERE status = 1 
-              AND MONTH(data_criacao) = :mes 
-              AND YEAR(data_criacao) = :ano
-        """)
-        result = db.execute(query, {"mes": mes, "ano": ano})
-        return result.scalar()
+        total = (
+            db.query(func.coalesce(func.sum(Orcamento.valor), 0))
+            .filter(
+                Orcamento.status == 1,
+                Orcamento.data_criacao >= inicio,
+                Orcamento.data_criacao < fim,
+            )
+            .scalar()
+        )
+        return total
 
 
 def lista_orcamentos_por_status_data(status, data_inicio, data_fim):
     with get_db() as db:
-        condicoes = ["1=1"]
-        params = {}
+        query = db.query(Orcamento, Paciente).join(
+            Paciente, Orcamento.paciente_id == Paciente.id
+        )
 
         if status is not None and str(status).isdigit():
-            condicoes.append("o.status = :status")
-            params["status"] = int(status)
+            query = query.filter(Orcamento.status == int(status))
 
         if data_inicio:
-            condicoes.append("CAST(o.data_criacao AS DATE) >= :data_inicio")
-            params["data_inicio"] = data_inicio
+            inicio = data_inicio if isinstance(data_inicio, datetime) else datetime.strptime(data_inicio, "%d/%m/%Y")
+            query = query.filter(Orcamento.data_criacao >= inicio)
 
         if data_fim:
-            condicoes.append("CAST(o.data_criacao AS DATE) <= :data_fim")
-            params["data_fim"] = data_fim
+            fim = data_fim if isinstance(data_fim, datetime) else datetime.strptime(data_fim, "%d/%m/%Y")
+            fim = fim + timedelta(days=1)
+            query = query.filter(Orcamento.data_criacao < fim)
 
-        where_clause = " AND ".join(condicoes)
+        resultados = query.order_by(Orcamento.data_criacao.desc()).all()
 
-        query = text(f"""
-            SELECT 
-                o.id,
-                o.consulta_id,
-                o.paciente_id,
-                p.nome AS paciente_nome,
-                p.cpf as paciente_cpf,
-                o.valor,
-                o.forma_pagamento,
-                o.status,
-                o.data_criacao
-            FROM Orcamentos o
-            INNER JOIN Pacientes p ON o.paciente_id = p.id 
-            WHERE {where_clause}
-            ORDER BY o.data_criacao DESC
-        """)
-
-        result = db.execute(query, params)
-        return result.fetchall()
+        return [
+            {
+                "id": o.id,
+                "consulta_id": o.consulta_id,
+                "paciente_id": o.paciente_id,
+                "paciente_nome": p.nome,
+                "paciente_cpf": p.cpf,
+                "valor": o.valor,
+                "forma_pagamento": o.forma_pagamento,
+                "status": o.status,
+                "data_criacao": o.data_criacao,
+            }
+            for o, p in resultados
+        ]
 
 
 def buscar_orcamento_por_id_consulta(id_consulta):
     with get_db() as db:
-        query = text("""
-            SELECT 
-                o.id
-            FROM Orcamentos o
-            INNER JOIN Consultas c ON o.consulta_id = c.id
-            WHERE c.id = :id_consulta
-        """)
-        result = db.execute(query, {"id_consulta": id_consulta})
-        return result.mappings().fetchall()
+        resultados = (
+            db.query(Orcamento)
+            .join(Consulta, Orcamento.consulta_id == Consulta.id)
+            .filter(Consulta.id == id_consulta)
+            .all()
+        )
+        return [{"id": o.id} for o in resultados]
 
 
 def deletar_orcamento(orcamento_id):
     with get_db() as db:
-        query = text("delete from Orcamentos where id = :id")
-        db.execute(query, {"id": orcamento_id})
-        db.commit()
+        orcamento = db.query(Orcamento).filter(Orcamento.id == orcamento_id).first()
+        if orcamento:
+            db.delete(orcamento)
+            db.commit()

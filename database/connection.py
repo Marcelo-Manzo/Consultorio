@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from . import models  # noqa: F401  # garante que as classes ORM são registradas
+
 load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")

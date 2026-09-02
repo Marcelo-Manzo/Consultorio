@@ -1,185 +1,317 @@
-from unittest.mock import patch, MagicMock
 from datetime import datetime
+
+from database import models
 from database.consultas import (
-    criar_consulta,
+    buscar_consulta_Atual,
     buscar_consulta_por_id,
     buscar_consulta_por_id_dict,
-    buscar_consulta_Atual,
+    criar_consulta,
     deletar_consulta,
-    update_consulta,
-    listar_consultas_data,
     listar_consultas_com_paciente_por_data,
+    listar_consultas_data,
     listar_consultas_paciente,
     listar_faltas_data,
+    listar_tratamentos,
     marcar_comparecimento,
     marcar_pagamento,
-    listar_tratamentos,
+    update_consulta,
 )
 
+from .conftest import patch_db
 
-@patch("database.consultas.get_db")
-def test_criar_consulta(mock_get_db):
-    mock_db = MagicMock()
-    mock_db.execute.return_value.scalar.return_value = 1
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
 
+def _criar_paciente(db_session, nome="João", cpf="123.456.789-00"):
+    p = models.Paciente(nome=nome, telefone="11999998888", cpf=cpf)
+    db_session.add(p)
+    db_session.commit()
+    db_session.refresh(p)
+    return p
+
+
+def _criar_tratamento(db_session, nome="Limpeza", valor=150.0):
+    t = models.Tratamento(nome=nome, valor=valor)
+    db_session.add(t)
+    db_session.commit()
+    db_session.refresh(t)
+    return t
+
+
+def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", valor=150.0):
+    if data is None:
+        data = datetime(2026, 8, 31, 10, 0)
+    c = models.Consulta(
+        paciente_id=paciente_id,
+        tratamento=tratamento,
+        data=data,
+        valor=valor,
+        metodo_pagamento="Pix",
+        compareceu=0,
+    )
+    db_session.add(c)
+    db_session.commit()
+    db_session.refresh(c)
+    return c
+
+
+# ==================== criar_consulta ====================
+
+
+def test_criar_consulta_retorna_id(db_session):
+    p = _criar_paciente(db_session)
     data = datetime(2026, 8, 31, 10, 0)
-    resultado = criar_consulta(1, "Limpeza", data, "150.00", "Pix")
 
-    assert resultado == 1
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
+    with patch_db("consultas", db_session):
+        consulta_id = criar_consulta(p.id, "Limpeza", data, 150.0, "Pix")
 
-
-@patch("database.consultas.get_db")
-def test_buscar_consulta_por_id(mock_get_db):
-    mock_db = MagicMock()
-    mock_consulta = MagicMock()
-    mock_consulta.id = 1
-    mock_db.execute.return_value.fetchone.return_value = mock_consulta
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
-
-    resultado = buscar_consulta_por_id(1)
-
-    assert resultado.id == 1
-    mock_db.execute.assert_called_once()
+    assert consulta_id is not None
+    with patch_db("consultas", db_session):
+        consulta = buscar_consulta_por_id(consulta_id)
+    assert consulta is not None
+    assert consulta.tratamento == "Limpeza"
 
 
-@patch("database.consultas.get_db")
-def test_buscar_consulta_por_id_nao_encontrada(mock_get_db):
-    mock_db = MagicMock()
-    mock_db.execute.return_value.fetchone.return_value = None
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+# ==================== buscar_consulta_por_id ====================
 
-    resultado = buscar_consulta_por_id(999)
 
+def test_buscar_consulta_por_id(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.id == consulta.id
+    assert resultado.tratamento == "Limpeza"
+
+
+def test_buscar_consulta_por_id_nao_encontrada(db_session):
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(999)
     assert resultado is None
 
 
-@patch("database.consultas.get_db")
-def test_buscar_consulta_por_id_dict(mock_get_db):
-    mock_db = MagicMock()
-    mock_consulta = {"id": 1, "tratamento": "Limpeza"}
-    mock_db.execute.return_value.mappings.return_value.fetchone.return_value = mock_consulta
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+# ==================== buscar_consulta_por_id_dict ====================
 
-    resultado = buscar_consulta_por_id_dict(1)
 
-    assert resultado["id"] == 1
+def test_buscar_consulta_por_id_dict(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id_dict(consulta.id)
+    assert resultado is not None
+    assert resultado["id"] == consulta.id
     assert resultado["tratamento"] == "Limpeza"
 
 
-@patch("database.consultas.get_db")
-def test_buscar_consulta_atual(mock_get_db):
-    mock_db = MagicMock()
-    mock_consulta = {"id": 1, "nome": "João", "data": datetime(2026, 8, 31, 10, 0), "tratamento": "Limpeza"}
-    mock_db.execute.return_value.mappings.return_value.fetchone.return_value = mock_consulta
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_buscar_consulta_por_id_dict_nao_encontrada(db_session):
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id_dict(999)
+    assert resultado is None
 
+
+# ==================== buscar_consulta_Atual ====================
+
+
+def test_buscar_consulta_atual(db_session):
+    p = _criar_paciente(db_session, nome="João")
     data = datetime(2026, 8, 31, 10, 0)
-    resultado = buscar_consulta_Atual(data)
+    _criar_consulta(db_session, p.id, data=data)
 
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_Atual(data)
     assert resultado is not None
     assert resultado["nome"] == "João"
+    assert resultado["tratamento"] == "Limpeza"
 
 
-@patch("database.consultas.get_db")
-def test_deletar_consulta(mock_get_db):
-    mock_db = MagicMock()
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_buscar_consulta_atual_nao_encontrada(db_session):
+    p = _criar_paciente(db_session)
+    data = datetime(2026, 8, 31, 10, 0)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 9, 1, 10, 0))
 
-    deletar_consulta(1)
-
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
-
-
-@patch("database.consultas.get_db")
-def test_update_consulta(mock_get_db):
-    mock_db = MagicMock()
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
-
-    data = datetime(2026, 9, 1, 14, 30)
-    update_consulta(1, "Clareamento", data, "300.00", "Crédito")
-
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_Atual(data)
+    assert resultado is None
 
 
-@patch("database.consultas.get_db")
-def test_listar_consultas_data(mock_get_db):
-    mock_db = MagicMock()
-    mock_consulta = MagicMock()
-    mock_consulta.data = datetime(2026, 8, 31, 10, 0)
-    mock_db.execute.return_value.fetchall.return_value = [mock_consulta]
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+# ==================== deletar_consulta ====================
 
-    resultado = listar_consultas_data("2026-08-31")
 
+def test_deletar_consulta(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+
+    with patch_db("consultas", db_session):
+        deletar_consulta(consulta.id)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado is None
+
+
+# ==================== update_consulta ====================
+
+
+def test_update_consulta(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+    nova_data = datetime(2026, 9, 15, 14, 30)
+
+    with patch_db("consultas", db_session):
+        update_consulta(consulta.id, "Clareamento", nova_data, 300.0, "Crédito")
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.tratamento == "Clareamento"
+    assert resultado.valor == 300.0
+    assert resultado.metodo_pagamento == "Crédito"
+    assert resultado.data == nova_data
+
+
+# ==================== listar_consultas_data ====================
+
+
+def test_listar_consultas_data(db_session):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 14, 0))
+    _criar_consulta(db_session, p.id, data=datetime(2026, 9, 1, 10, 0))
+
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_data("2026-08-31")
+    assert len(resultado) == 2
+
+
+def test_listar_consultas_data_vazio(db_session):
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_data("2026-08-31")
+    assert resultado == []
+
+
+# ==================== listar_consultas_com_paciente_por_data ====================
+
+
+def test_listar_consultas_com_paciente_por_data(db_session):
+    p = _criar_paciente(db_session, nome="Ana")
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_com_paciente_por_data("2026-08-31")
     assert len(resultado) == 1
-    mock_db.execute.assert_called_once()
+    assert resultado[0]["nome"] == "Ana"
+    assert resultado[0]["paciente_id"] == p.id
 
 
-@patch("database.consultas.get_db")
-def test_listar_consultas_paciente(mock_get_db):
-    mock_db = MagicMock()
-    mock_consulta = MagicMock()
-    mock_consulta.paciente_id = 1
-    mock_db.execute.return_value.fetchall.return_value = [mock_consulta]
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_listar_consultas_com_paciente_por_data_ignora_faltas(db_session):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    c.compareceu = 2  # Faltou
+    db_session.commit()
 
-    resultado = listar_consultas_paciente(1)
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_com_paciente_por_data("2026-08-31")
+    assert resultado == []
 
+
+# ==================== listar_consultas_paciente ====================
+
+
+def test_listar_consultas_paciente(db_session):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    _criar_consulta(db_session, p.id, data=datetime(2026, 9, 1, 10, 0))
+
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_paciente(p.id)
+    assert len(resultado) == 2
+
+
+# ==================== listar_faltas_data ====================
+
+
+def test_listar_faltas_data(db_session):
+    p = _criar_paciente(db_session, nome="Carlos")
+    c = _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    c.compareceu = 2
+    db_session.commit()
+
+    with patch_db("consultas", db_session):
+        resultado = listar_faltas_data("2026-08-31")
     assert len(resultado) == 1
-    assert resultado[0].paciente_id == 1
+    assert resultado[0]["nome"] == "Carlos"
 
 
-@patch("database.consultas.get_db")
-def test_listar_faltas_data(mock_get_db):
-    mock_db = MagicMock()
-    mock_falta = {"nome": "João", "tratamento": "Limpeza", "data": datetime(2026, 8, 31, 10, 0)}
-    mock_db.execute.return_value.mappings.return_value.fetchall.return_value = [mock_falta]
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_listar_faltas_data_nao_mostra_compareceu(db_session):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))  # compareceu=0
 
-    resultado = listar_faltas_data("2026-08-31")
-
-    assert len(resultado) == 1
-    assert resultado[0]["nome"] == "João"
+    with patch_db("consultas", db_session):
+        resultado = listar_faltas_data("2026-08-31")
+    assert resultado == []
 
 
-@patch("database.consultas.get_db")
-def test_marcar_comparecimento(mock_get_db):
-    mock_db = MagicMock()
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
-
-    marcar_comparecimento(1, status=1)
-
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
+# ==================== marcar_comparecimento ====================
 
 
-@patch("database.consultas.get_db")
-def test_marcar_pagamento(mock_get_db):
-    mock_db = MagicMock()
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_marcar_comparecimento(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
 
-    marcar_pagamento(1, True)
+    with patch_db("consultas", db_session):
+        marcar_comparecimento(consulta.id, status=1)
 
-    mock_db.execute.assert_called_once()
-    mock_db.commit.assert_called_once()
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.compareceu == 1
 
 
-@patch("database.consultas.get_db")
-def test_listar_tratamentos(mock_get_db):
-    mock_db = MagicMock()
-    mock_tratamento = MagicMock()
-    mock_tratamento.nome = "Limpeza"
-    mock_tratamento.valor = 150.00
-    mock_db.execute.return_value.fetchall.return_value = [mock_tratamento]
-    mock_get_db.return_value.__enter__ = MagicMock(return_value=mock_db)
+def test_marcar_falta(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
 
-    resultado = listar_tratamentos()
+    with patch_db("consultas", db_session):
+        marcar_comparecimento(consulta.id, status=2)
 
-    assert len(resultado) == 1
-    assert resultado[0].nome == "Limpeza"
-    assert resultado[0].valor == 150.00
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.compareceu == 2
+
+
+# ==================== marcar_pagamento ====================
+
+
+def test_marcar_pagamento(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+
+    with patch_db("consultas", db_session):
+        marcar_pagamento(consulta.id, True)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.pago is True
+
+
+# ==================== listar_tratamentos ====================
+
+
+def test_listar_tratamentos(db_session):
+    _criar_tratamento(db_session, nome="Limpeza", valor=150.0)
+    _criar_tratamento(db_session, nome="Clareamento", valor=500.0)
+
+    with patch_db("consultas", db_session):
+        resultado = listar_tratamentos()
+    assert len(resultado) == 2
+    assert resultado[0].nome in ("Limpeza", "Clareamento")
+    assert resultado[0].valor in (150.0, 500.0)
+
+
+def test_listar_tratamentos_ordem(db_session):
+    _criar_tratamento(db_session, nome="Zeta")
+    _criar_tratamento(db_session, nome="Alpha")
+
+    with patch_db("consultas", db_session):
+        resultado = listar_tratamentos()
+    assert [t.nome for t in resultado] == ["Alpha", "Zeta"]
+
+
