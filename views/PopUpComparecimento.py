@@ -15,17 +15,17 @@ def mostrar(parent):
     def abrir_notificacao_comparecimento(data_e_horario):
         # 1. Busca os dados da consulta que disparou o alarme
         consulta = buscar_consulta_Atual(data_e_horario)
-        orcamentos = buscar_orcamento_por_id_consulta(consulta["id"])
-        if orcamentos is not None:
-            orcamento = orcamentos[0]
-
-        print(orcamento)
 
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
         if not consulta:
             print("consulta nao encontrada")
+            return
 
-        print("consulta encontrada")
+        # 2. Busca o orçamento associado a esta consulta (lista, pode ser vazia)
+        orcamentos = buscar_orcamento_por_id_consulta(consulta["id"])
+        orcamento = orcamentos[0] if orcamentos else None
+
+        print(orcamento)
 
         # ==================== MUDANÇA DE ESTADO ====================
         # muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.

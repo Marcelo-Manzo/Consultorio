@@ -1,13 +1,12 @@
+import os
 import platform
 import sys
-import time
-import threading
 from datetime import datetime
 
 import customtkinter as ctk
 from sqlalchemy import text
 
-from database.connection import get_db, DATABASE_URL
+from database.connection import DATABASE_URL, get_db
 
 
 def mostrar(parent):
@@ -206,8 +205,6 @@ def mostrar(parent):
     frame_log.pack(fill="both", expand=True, padx=5, pady=(0, 5))
 
     # Log inicial
-    import os
-
     log("Sistema iniciado", "OK")
     log(f"Plataforma: {platform.system()} {platform.release()}", "INFO")
     log(f"Python: {sys.version.split()[0]}", "INFO")

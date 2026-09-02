@@ -29,10 +29,35 @@ LISTA DE PROBLEMAS - Consultorio
 
     Pytest	     Roda testes automatizados	Garante que nada quebrou
 
-[ ] 4. SQLAlchemy USADO ERRADO
+[x] 4. SQLAlchemy USADO ERRADO
     - Instalado mas usado só como connection pool com raw SQL
     - Sem benefícios do ORM (type safety, migrations, schema)
-    - STATUS: PENDENTE
+    - STATUS: CONCLUIDO
+    Resumo
+
+    -- Convertido o layer de banco de raw SQL (text("""...""")) para ORM:
+    - database/models.py (novo): classes ORM Paciente, Consulta, Orcamento,
+      Tratamento mapeadas para as tabelas existentes no SQL Server
+      (__tablename__ identico, sem create_all - o banco ja existe)
+    - database/connection.py: importa models para registrar as classes
+    - database/pacientes.py, consultas.py, orcamento.py: reescritos em ORM
+      (db.add / db.query / db.commit) mantendo mesmos nomes e assinaturas
+      de funcao para nao quebrar as views
+    - Correcao de compatibilidade SQL Server: trocado func.extract(month/year)
+      (nao suportado pelo SQL Server) por filtro de faixa de data em
+      listar_orcamentos_por_mes e obter_ganho_total_mes (database/orcamento.py)
+    - Substituido "OUTPUT INSERTED.id" (especifico do SQL Server) por
+      db.refresh() em criar_consulta - codigo portavel entre bancos
+
+    -- Testes: reescritos para rodar em SQLite em memoria + ORM real
+    (fixture db_session e helper patch_db no tests/conftest.py).
+    Rodou: 66 testes passando. Validado tambem contra o SQL Server real
+    (queries de leitura executaram sem erro e retornaram dados corretos).
+    Ruff limpo em database/ e tests/.
+
+    -- FORA DE ESCOPO (pre-existente, nao alterado):
+    abrir_detalhes_paciente ainda e um stub (print) em views/faltantes.py
+
 
 [x] 5. CONNECTION STRING HARDCODED (database/connection.py:4)
     - "@MARCELO/Consultorio" fixado no código
@@ -57,6 +82,24 @@ LISTA DE PROBLEMAS - Consultorio
     - Faltam: reportlab, validate-docbr
     - Sem version pins - builds não reproduzíveis
     - STATUS: PENDENTE
+
+[x] 9. POPUP COMPARECIMENTO - INDEXERROR (views/PopUpComparecimento.py)
+    - buscar_orcamento_por_id_consulta sempre retorna LISTA (vazia se não houver
+      orçamento), nunca None
+    - O código fazia: if orcamentos is not None: orcamento = orcamentos[0]
+      -> orcamentos[0] DAVA IndexError em lista vazia (consulta sem orçamento)
+    - Também usava consulta["id"] ANTES do check "if not consulta"
+      -> crash se consulta fosse None
+    - STATUS: CONCLUIDO
+    Corrigido em 02/09: trata lista vazia (orcamento = orcamentos[0] if
+    orcamentos else None) e retorna cedo se consulta não existe.
+
+[x] 10. DEBUG - IMPORT OS TARDIO (views/debug.py)
+    - rodar_diagnostico_completo usava os.getcwd() mas import os só existia no
+      final da função mostrar() - funcionava por acaso (nome resolvido em runtime)
+    - STATUS: CONCLUIDO
+    Corrigido em 02/09: import os movido para o topo do módulo.
+    Também removidos imports mortos (time, threading).
 
 ============================================
 ORDEM DE PRIORIDADE:
