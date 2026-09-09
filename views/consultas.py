@@ -77,7 +77,11 @@ def mostrar(parent):
 
     def buscar_paciente():
         nome = nome_busca_entry.get()
-        pacientes = buscar_paciente_por_nome(nome)
+        try:
+            pacientes = buscar_paciente_por_nome(nome)
+        except Exception:
+            resultado_label.configure(text="❌ Erro ao buscar paciente no banco", text_color="#f87171")
+            return
 
         if len(pacientes) == 0:
             resultado_label.configure(text="❌ Paciente não encontrado", text_color="#f87171")
@@ -108,7 +112,10 @@ def mostrar(parent):
 
     # [GRUPO 2]: PROCEDIMENTO E ASSISTENTE DE HORÁRIO
     # Tratamento dropdown (Movido para o frame_formulario)
-    tratamentos_db = listar_tratamentos()
+    try:
+        tratamentos_db = listar_tratamentos()
+    except Exception:
+        tratamentos_db = []
     tratamentos_lista = [t.nome for t in tratamentos_db]
 
     tratamento_dropdown = ctk.CTkComboBox(
@@ -170,7 +177,11 @@ def mostrar(parent):
         except ValueError:
             resultado_label.configure(text="❌ Data inválida. Use DD/MM/AAAA", text_color="#f87171")
             return
-        consultas_dia = listar_consultas_data(data.strftime("%Y-%m-%d"))
+        try:
+            consultas_dia = listar_consultas_data(data.strftime("%Y-%m-%d"))
+        except Exception:
+            resultado_label.configure(text="❌ Erro ao buscar consultas no banco", text_color="#f87171")
+            return
         horarios_disponiveis = horarios_padrao.copy()
         for i in consultas_dia:
             horario_ocupado = i.data.strftime("%H:%M")
@@ -250,7 +261,11 @@ def mostrar(parent):
 
         # 2. Busca e renderiza a lista atualizada
         lista_label.configure(text=f"Histórico: {paciente_selecionado['nome']}", text_color="#ffffff")
-        consultas = listar_consultas_paciente(paciente_selecionado["id"])
+        try:
+            consultas = listar_consultas_paciente(paciente_selecionado["id"])
+        except Exception:
+            lista_label.configure(text="❌ Erro ao buscar consultas no banco", text_color="#f87171")
+            return
         for c in consultas:
             # .strftime("%H:%M") extrai apenas as horas e minutos da sua data unificada
             texto = f"Procedimento: {c.tratamento}\nData: {c.data.strftime('%d/%m/%Y')} às {c.data.strftime('%H:%M')}\nValor: R$ {c.valor} ({c.metodo_pagamento})"

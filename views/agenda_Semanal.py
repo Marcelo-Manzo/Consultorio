@@ -105,7 +105,10 @@ def mostrar(parent):
             data_banco = data_dia.strftime("%Y-%m-%d")
 
             # Busca todas as consultas do dia contendo o JOIN com os dados dos pacientes mapeados
-            consultas_dia = listar_consultas_com_paciente_por_data(data_banco)
+            try:
+                consultas_dia = listar_consultas_com_paciente_por_data(data_banco)
+            except Exception:
+                consultas_dia = []
 
             # Varremos a lista estática de horários um por um
             for hora_teste in horarios:
@@ -187,7 +190,7 @@ def mostrar(parent):
                     btn_deletar = ctk.CTkButton(
                         consulta_frame,
                         text="❌",
-                        command=lambda id_c=c_id: [deletar_consulta(id_c), atualizar_dados_agenda()],
+                        command=lambda id_c=c_id: _deletar_consulta_seguro(id_c),
                         width=24,
                         height=24,
                         corner_radius=5,
@@ -272,6 +275,13 @@ def mostrar(parent):
         controle_semana["deslocamento"] -= 1
         atualizar_dados_agenda()
 
+    def _deletar_consulta_seguro(id_c):
+        try:
+            deletar_consulta(id_c)
+        except Exception:
+            pass
+        atualizar_dados_agenda()
+
     def abrir_janela_detalhes(id_consulta):
         """
         Abre a janela modal contendo os detalhes completos do agendamento.
@@ -337,8 +347,12 @@ def mostrar(parent):
                 resultado_salvar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
-            consulta_id = criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
-            criar_orcamento(consulta_id, paciente_selecionado["id"], valor, metodo, data_e_horario_final, status=0)
+            try:
+                consulta_id = criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
+                criar_orcamento(consulta_id, paciente_selecionado["id"], valor, metodo, data_e_horario_final, status=0)
+            except Exception:
+                resultado_salvar_label.configure(text="❌ Erro ao salvar no banco", text_color="#ff4a4a")
+                return
 
             frame_criar_consulta.destroy()
             atualizar_dados_agenda()
@@ -354,7 +368,11 @@ def mostrar(parent):
                 resultado_label.configure(text="❌ Digite um nome para buscar.", text_color="#f87171")
                 return
 
-            pacientes = buscar_paciente_por_nome(nome)
+            try:
+                pacientes = buscar_paciente_por_nome(nome)
+            except Exception:
+                resultado_label.configure(text="❌ Erro ao buscar paciente no banco", text_color="#f87171")
+                return
 
             if len(pacientes) == 0:
                 resultado_label.configure(text="❌ Paciente não encontrado", text_color="#f87171")
@@ -402,7 +420,10 @@ def mostrar(parent):
         )
         resultado_label.grid(row=1, column=0, columnspan=2, sticky="w", padx=12, pady=(2, 12))
 
-        tratamentos_db = listar_tratamentos()
+        try:
+            tratamentos_db = listar_tratamentos()
+        except Exception:
+            tratamentos_db = []
         tratamentos_lista = [t.nome for t in tratamentos_db]
 
         def ao_selecionar_tratamento(tratamento_selecionado):
@@ -519,7 +540,10 @@ def mostrar(parent):
         )
         lbl_topo.pack(pady=15)
 
-        tratamentos_db = listar_tratamentos()
+        try:
+            tratamentos_db = listar_tratamentos()
+        except Exception:
+            tratamentos_db = []
         tratamentos_lista = [t.nome for t in tratamentos_db]
 
         def ao_selecionar_tratamento(tratamento_selecionado):
@@ -600,10 +624,14 @@ def mostrar(parent):
                 resultado_editar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
-            update_consulta(consulta["consulta_id"], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
-            update_orcamento_por_consulta(
-                consulta["consulta_id"], consulta["paciente_id"], novo_valor, novo_metodo, status=0
-            )
+            try:
+                update_consulta(consulta["consulta_id"], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
+                update_orcamento_por_consulta(
+                    consulta["consulta_id"], consulta["paciente_id"], novo_valor, novo_metodo, status=0
+                )
+            except Exception:
+                resultado_editar_label.configure(text="❌ Erro ao atualizar no banco", text_color="#ff4a4a")
+                return
 
             frame_editar_consulta.destroy()
             atualizar_dados_agenda()

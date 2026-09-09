@@ -14,7 +14,11 @@ def mostrar(parent):
 
     def abrir_notificacao_comparecimento(data_e_horario):
         # 1. Busca os dados da consulta que disparou o alarme
-        consulta = buscar_consulta_Atual(data_e_horario)
+        try:
+            consulta = buscar_consulta_Atual(data_e_horario)
+        except Exception:
+            print("Erro ao buscar consulta no banco")
+            return
 
         # Se por algum motivo não achar a consulta, cancela para não dar erro na tela
         if not consulta:
@@ -22,14 +26,20 @@ def mostrar(parent):
             return
 
         # 2. Busca o orçamento associado a esta consulta (lista, pode ser vazia)
-        orcamentos = buscar_orcamento_por_id_consulta(consulta["id"])
+        try:
+            orcamentos = buscar_orcamento_por_id_consulta(consulta["id"])
+        except Exception:
+            orcamentos = []
         orcamento = orcamentos[0] if orcamentos else None
 
         print(orcamento)
 
         # ==================== MUDANÇA DE ESTADO ====================
         # muda o estado de comparecimento de 1 para 4 --> 4 enquanto estiver em analise, para que não se repita a verificação e não suma da agenda.
-        marcar_comparecimento(consulta["id"], status=4)
+        try:
+            marcar_comparecimento(consulta["id"], status=4)
+        except Exception:
+            print("Erro ao marcar comparecimento no banco")
 
         # 2. Criação da Janela Pop-up (Toplevel)
         popup = ctk.CTkToplevel(parent, fg_color="#1e1f22")
@@ -54,7 +64,10 @@ def mostrar(parent):
 
         def responder_sim():
             # Status 1 = Compareceu
-            marcar_comparecimento(consulta["id"], status=1)
+            try:
+                marcar_comparecimento(consulta["id"], status=1)
+            except Exception:
+                print("Erro ao marcar comparecimento no banco")
             popup.destroy()
             # Se você tiver uma função global para recarregar a agenda na tela de fundo, chame-a aqui
             print(f"Consulta id:{consulta['id']} marcada como COMPARECEU.")
@@ -62,8 +75,11 @@ def mostrar(parent):
         def responder_nao():
             # Status 2 = Faltou (vai direto para a aba de faltantes)
             if orcamento:
-                marcar_comparecimento(consulta["id"], status=2)
-                deletar_orcamento(orcamento["id"])
+                try:
+                    marcar_comparecimento(consulta["id"], status=2)
+                    deletar_orcamento(orcamento["id"])
+                except Exception:
+                    print("Erro ao marcar falta no banco")
                 print(f"orcamento :{orcamento['id']} cancelado")
                 popup.destroy()
                 print(f"Consulta {consulta['id']} marcada como FALTA.")

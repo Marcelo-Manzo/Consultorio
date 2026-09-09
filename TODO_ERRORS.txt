@@ -18,16 +18,19 @@ LISTA DE PROBLEMAS - Consultorio
     - Sem cobertura de testes
     - Sem análise estática (ruff, mypy)
     - Impossível detectar regressões
-    - STATUS: PENDENTE
+    - STATUS: PARCIALMENTE CONCLUIDO
         Resumo
 
         -- sao  programas que voce roda e mostra os seguintes erros:
     Ferramenta	   O que faz	             Por que usar
     Ruff	     Avisa problemas no código	Código limpo, sem imports mortos
+    [x] Configurado. Rode: .venv\Scripts\ruff check .
 
     Mypy	     Verifica tipos dos parâmetros	Evita bugs de   tipos errados
+    [ ] Não configurado (baixo custo-benefício para este projeto)
 
     Pytest	     Roda testes automatizados	Garante que nada quebrou
+    [x] 66 testes passando. Rode: .venv\Scripts\pytest tests/
 
 [x] 4. SQLAlchemy USADO ERRADO
     - Instalado mas usado só como connection pool com raw SQL
@@ -68,15 +71,35 @@ LISTA DE PROBLEMAS - Consultorio
 
     - STATUS: CONCLUIDO
 
-[ ] 6. TIPOS DE RETORNO INCONSISTENTES
+[x] 6. TIPOS DE RETORNO INCONSISTENTES
     - Algumas queries retornam Row objects, outras dicts
     - buscar_consulta_por_id vs buscar_consulta_por_id_dict
-    - STATUS: PENDENTE
+    - STATUS: CONCLUIDO
+    Verificado durante a revisão completa do ORM (#4): todas as funções
+    de banco retornam tipos consistentes (ORM objects ou dicts) e todas
+    as views consomem os dados corretamente (p attributes ou dict keys).
+    Nenhuma inconsistência encontrada.
 
-[ ] 7. SEM ERROR HANDLING NAS VIEWS
+[x] 7. SEM ERROR HANDLING NAS VIEWS
     - A maioria das views chamam funções DB sem try/except
     - Query falhada trava a UI
-    - STATUS: PENDENTE
+    - STATUS: CONCLUIDO
+    Mapeadas 36 chamadas de funções DB nas views (6 arquivos).
+    Apenas 2 tinham try/except. Adicionados try/except nas 34 restantes:
+
+    - views/pacientes.py: 7 pontos (salvar, validar CPF, listar, buscar)
+    - views/consultas.py: 4 pontos (buscar paciente, listar tratamentos,
+      filtrar horários, listar consultas)
+    - views/agenda_Semanal.py: 9 pontos (listar consultas, deletar, criar
+      consulta+orçamento, buscar paciente, listar tratamentos x2, update)
+    - views/faltantes.py: 5 pontos (buscar consulta, criar+marcar,
+      resolver falta, listar faltas)
+    - views/orcamento.py: 3 pontos (aprovar, cancelar, filtrar)
+    - views/PopUpComparecimento.py: 6 pontos (buscar consulta, buscar
+      orçamento, marcar comparecimento x3, deletar orçamento)
+
+    Padrão aplicado: try/except com mensagem ao usuário (via label ou
+    messagebox) ou fallback seguro (lista vazia) em caso de erro.
 
 [x] 8. REQUIREMENTS.TXT INCOMPLETO
     - Faltavam: reportlab, validate-docbr (já adicionados)

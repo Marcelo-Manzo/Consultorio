@@ -139,13 +139,21 @@ def mostrar(parent):
 
         def on_aprovar_click(orcamento_id):
             status = 1
-            atualizar_status_orcamento(orcamento_id, status)
+            try:
+                atualizar_status_orcamento(orcamento_id, status)
+            except Exception:
+                messagebox.showerror("Erro", "Falha ao aprovar orçamento no banco")
+                return
             on_filtrar_click()
             print(f"Aprovar orçamento: {orcamento_id}")
 
         def on_cancelar_click(orcamento_id):
             status = 2
-            atualizar_status_orcamento(orcamento_id, status)
+            try:
+                atualizar_status_orcamento(orcamento_id, status)
+            except Exception:
+                messagebox.showerror("Erro", "Falha ao cancelar orçamento no banco")
+                return
             on_filtrar_click()
             print(f"Cancelar orçamento: {orcamento_id}")
 
@@ -433,7 +441,10 @@ def mostrar(parent):
                 return
 
             # Busca do banco
-            orcamentos = lista_orcamentos_por_status_data(status_id, dt_inicio, dt_fim)
+            try:
+                orcamentos = lista_orcamentos_por_status_data(status_id, dt_inicio, dt_fim)
+            except Exception:
+                orcamentos = []
 
             # Filtro por Nome (se houver algo digitado)
             if termo_busca:

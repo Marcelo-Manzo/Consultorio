@@ -27,7 +27,15 @@ def mostrar(parent):
         frame_editar_consulta.grab_set()
 
         # ====================CustomTkinter======================
-        consulta = buscar_consulta_por_id_dict(id_consulta)
+        try:
+            consulta = buscar_consulta_por_id_dict(id_consulta)
+        except Exception:
+            frame_editar_consulta.destroy()
+            return
+
+        if not consulta:
+            frame_editar_consulta.destroy()
+            return
 
         lbl_topo = ctk.CTkLabel(
             frame_editar_consulta,
@@ -65,16 +73,20 @@ def mostrar(parent):
                 return
 
             # 1. Cria a consulta nova apontando para o PACIENTE correto
-            criar_consulta(
-                consulta["paciente_id"],
-                consulta["tratamento"],
-                data_e_horario_final,
-                consulta["valor"],
-                consulta["metodo_pagamento"],
-            )
+            try:
+                criar_consulta(
+                    consulta["paciente_id"],
+                    consulta["tratamento"],
+                    data_e_horario_final,
+                    consulta["valor"],
+                    consulta["metodo_pagamento"],
+                )
 
-            # 2. Atualiza a consulta antiga para o status 3 (Falta Remarcada)
-            marcar_comparecimento(consulta["id"], status=3)
+                # 2. Atualiza a consulta antiga para o status 3 (Falta Remarcada)
+                marcar_comparecimento(consulta["id"], status=3)
+            except Exception:
+                resultado_editar_label.configure(text="❌ Erro ao salvar no banco", text_color="#ff4a4a")
+                return
 
             # 3. Fecha a janela de edição/remarcação
             frame_editar_consulta.destroy()
@@ -139,7 +151,10 @@ def mostrar(parent):
         Quando o usuário clica no '✔', significa que o paciente apareceu
         (ou a falta foi resolvida).
         """
-        marcar_comparecimento(id_consulta, 3)
+        try:
+            marcar_comparecimento(id_consulta, 3)
+        except Exception:
+            pass
         atualizar_tabela_faltantes()
 
     def avanca_semana():
@@ -232,7 +247,10 @@ def mostrar(parent):
             data_banco = data_dia.strftime("%Y-%m-%d")
 
             # Busca as faltas correspondentes especificamente a esta data
-            faltantes = listar_faltas_data(data_banco)
+            try:
+                faltantes = listar_faltas_data(data_banco)
+            except Exception:
+                faltantes = []
 
             # Se existirem faltas para este dia, desenhamos o divisor e os cards
             if faltantes:

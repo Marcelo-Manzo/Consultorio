@@ -255,8 +255,12 @@ def mostrar(parent):
 
             # No caso de edição, ignora a checagem de CPF se o CPF continuar o mesmo
             if not eh_edicao or (eh_edicao and cpf_str != paciente.cpf):
-                if len(buscar_paciente_por_cpf(cpf_str)) > 0:
-                    resultado_label.configure(text="❌ Já existe paciente com este CPF", text_color="#f87171")
+                try:
+                    if len(buscar_paciente_por_cpf(cpf_str)) > 0:
+                        resultado_label.configure(text="❌ Já existe paciente com este CPF", text_color="#f87171")
+                        return False
+                except Exception:
+                    resultado_label.configure(text="❌ Erro ao verificar CPF no banco", text_color="#f87171")
                     return False
 
             return True
@@ -267,10 +271,14 @@ def mostrar(parent):
                 cpf_str = cpf_entry.get().strip()
                 telefone = telefone_entry.get().strip()
 
-                if eh_edicao:
-                    atualizar_paciente(paciente.id, nome, telefone, cpf_str)
-                else:
-                    criar_paciente(nome, telefone, cpf_str)
+                try:
+                    if eh_edicao:
+                        atualizar_paciente(paciente.id, nome, telefone, cpf_str)
+                    else:
+                        criar_paciente(nome, telefone, cpf_str)
+                except Exception:
+                    resultado_label.configure(text="❌ Erro ao salvar paciente no banco", text_color="#f87171")
+                    return
 
                 atualizar_lista()
                 pop_up.destroy()
@@ -331,7 +339,11 @@ def mostrar(parent):
         for widget in lista_frame.winfo_children():
             widget.destroy()
 
-        pacientes = lista_filtrada if lista_filtrada is not None else listar_pacientes()
+        try:
+            pacientes = lista_filtrada if lista_filtrada is not None else listar_pacientes()
+        except Exception:
+            resultado_label_busca.configure(text="❌ Erro ao buscar pacientes no banco", text_color="#f87171")
+            return
 
         if not pacientes:
             resultado_label_busca.configure(text="❌ Nenhum paciente encontrado.", text_color="#f87171")
@@ -439,11 +451,15 @@ def mostrar(parent):
 
         apenas_numeros = re.sub(r"\D", "", termo)
 
-        # Se houver números ou caracteres de CPF, realiza a busca por CPF
-        if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
-            encontrados = buscar_paciente_por_cpf(termo)
-        else:
-            encontrados = buscar_paciente_por_nome(termo)
+        try:
+            # Se houver números ou caracteres de CPF, realiza a busca por CPF
+            if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
+                encontrados = buscar_paciente_por_cpf(termo)
+            else:
+                encontrados = buscar_paciente_por_nome(termo)
+        except Exception:
+            resultado_label_busca.configure(text="❌ Erro ao buscar no banco", text_color="#f87171")
+            return
 
         atualizar_lista(encontrados)
 
