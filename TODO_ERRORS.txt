@@ -78,10 +78,12 @@ LISTA DE PROBLEMAS - Consultorio
     - Query falhada trava a UI
     - STATUS: PENDENTE
 
-[ ] 8. REQUIREMENTS.TXT INCOMPLETO
-    - Faltam: reportlab, validate-docbr
+[x] 8. REQUIREMENTS.TXT INCOMPLETO
+    - Faltavam: reportlab, validate-docbr (já adicionados)
     - Sem version pins - builds não reproduzíveis
-    - STATUS: PENDENTE
+    - STATUS: CONCLUIDO
+    Adicionadas versões exatas de todas as dependências (runtime e dev)
+    com base nas versões instaladas no ambiente atual.
 
 [x] 9. POPUP COMPARECIMENTO - INDEXERROR (views/PopUpComparecimento.py)
     - buscar_orcamento_por_id_consulta sempre retorna LISTA (vazia se não houver
