@@ -1,0 +1,214 @@
+==================================================================
+ROTEIRO DE IMPLEMENTACAO - LOGIN + CLOUD (Supabase)
+Consultorio
+==================================================================
+
+Objetivo: adicionar tela de login e migrar o banco do SQL Server
+local para o Postgres gratuito do Supabase.
+
+Dividido em 2 fases. Siga a ordem, um passo por vez.
+Quando terminar um passo, marque com [x].
+
+==================================================================
+FASE 1: LOGIN (faca primeiro - mais facil)
+==================================================================
+
+[ ] Passo 1 - Criar tabela Usuarios no SQL Server local
+    ------------------------------------------------
+    Rode no SQL Server Management Studio (ou no terminal):
+
+    CREATE TABLE Usuarios (
+        id INT PRIMARY KEY IDENTITY,
+        nome VARCHAR(100) NOT NULL,
+        email VARCHAR(150) UNIQUE NOT NULL,
+        senha_hash VARCHAR(255) NOT NULL
+    );
+
+    Conferir depois: SELECT * FROM Usuarios;  -> tabela vazia
+
+
+[ ] Passo 2 - Adicionar model em database/models.py
+    ------------------------------------------------
+    Abrir database/models.py e adicionar:
+
+    class Usuario(Base):
+        __tablename__ = "Usuarios"
+
+        id = Column(Integer, primary_key=True)
+        nome = Column(String)
+        email = Column(String, unique=True)
+        senha_hash = Column(String)
+
+
+[ ] Passo 3 - Criar database/usuarios.py
+    ------------------------------------------------
+    Instalar a lib de hash primeiro:
+        pip install bcrypt
+
+    Criar o arquivo database/usuarios.py com 3 funcoes:
+        - criar_usuario(nome, email, senha)
+            -> hashea a senha com bcrypt e salva no banco
+        - buscar_usuario_por_email(email)
+            -> retorna o usuario (ou None)
+        - validar_senha(senha, hash)
+            -> compara senha digitada com o hash usando bcrypt.checkpw
+
+    Registrar as funcoes no database/__init__.py (importar e
+    colocar em __all__).
+
+    Dica: importar de bcrypt -> import bcrypt
+    hashear: bcrypt.hashpw(senha.encode(), bcrypt.gensalt())
+    validar: bcrypt.checkpw(senha.encode(), hash.encode())
+
+
+[ ] Passo 4 - Criar views/login.py
+    ------------------------------------------------
+    Tela de login usando CustomTkinter:
+        - Campo EMAIL
+        - Campo SENHA (show="*")
+        - Botao "Entrar"
+        - Label de erro (mensagem quando email/senha errados)
+
+    Logica do botao Entrar:
+        - buscar_usuario_por_email(email)
+        - se usuario nao existe -> mostra "Usuario nao encontrado"
+        - se existe -> validar_senha(senha, usuario.senha_hash)
+        - senha errada -> mostra "Senha incorreta"
+        - senha certa -> chama a funcao de sucesso que abre o App
+
+
+[ ] Passo 5 - Alterar app.py
+    ------------------------------------------------
+    No final do arquivo, em vez de abrir App() direto:
+
+    - Criar uma funcao abrir_app() que instancia App() e roda mainloop
+    - Abrir primeiro a tela de login (CTk window do views/login.py)
+    - A tela de login chama abrir_app() quando o login for bem-sucedido
+
+    Detalhe: o App() tambem deve ser protegido - se o login falhar,
+    nada de app principal. Reorganize o __main__ para:
+        app_login = LoginApp()
+        app_login.mainloop()
+
+
+[ ] Passo 6 - Criar usuario admin inicial
+    ------------------------------------------------
+    Criar um script criar_admin.py na raiz (temporario, pode deletar
+    depois) que insere um usuario seu:
+
+    - pedir nome, email e senha (ou fixar no codigo so por enquanto)
+    - chamar criar_usuario(...)
+    - rodar e conferir no banco se gravou
+
+    Rodar: python criar_admin.py
+    Registrar em algum lugar seguro o email/senha (senha nunca em txt,
+    melhor num password manager).
+
+    Depois de criar o usuario, TESTAR ABRINDO O APP: tentar logar com
+    email/senha certos e errados.
+
+==================================================================
+FASE 2: CLOUD (Supabase - gratis)
+==================================================================
+
+[ ] Passo 7 - Criar conta no Supabase
+    ------------------------------------------------
+    1. Acessar https://supabase.com -> Sign up (pode usar GitHub)
+    2. Criar um novo projeto (nome: consultorio)
+       - Anotar a URL do projeto (ex: https://xxxx.supabase.co)
+       - Anotar a SENHA do banco (gerada na criacao)
+    3. Menu Settings > Database -> copiar a connection string
+       (formato: postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres)
+
+
+[ ] Passo 8 - Criar as tabelas no Supabase
+    ------------------------------------------------
+    No painel: Menu SQL Editor -> New query
+    Rodar os CREATE TABLE de TODAS as tabelas, com os mesmos nomes e
+    colunas do SQL Server (id, nome, telefone, cpf, etc.).
+
+    Tabelas a criar:
+        Pacientes  (id, nome, telefone, cpf)
+        Consultas  (id, paciente_id, data, tratamento, valor,
+                    metodo_pagamento, compareceu, pago)
+        Orcamentos (id, consulta_id, paciente_id, valor,
+                    forma_pagamento, status, data_criacao)
+        Tratamentos (id, nome, valor)
+        Usuarios   (id, nome, email, senha_hash)
+
+    OBS: no Postgres, o auto-increment nao usa IDENTITY, usa
+    SERIAL ou IDENTITY mesmo (versoes novas). Formato:
+        id SERIAL PRIMARY KEY
+    E o CPF/telefone ficam como VARCHAR.
+
+    Dica: o schema nao precisa incluir registros - so a estrutura.
+
+
+[ ] Passo 9 - Exportar dados do SQL Server para o Supabase
+    ------------------------------------------------
+    Criar um script temporario exportar_dados.py na raiz que:
+    1. abre a conexao com o SQL Server local (.env atual)
+    2. le todas as linhas de Pacientes, Consultas, Orcamentos,
+       Tratamentos (e Usuarios se tiver)
+    3. troca a connection string para o Supabase
+    4. insere as linhas uma a uma (respeitando os ids, para nao
+       quebrar os relacionamentos)
+
+    Dica: insira na ordem Pacientes -> Consultas -> Orcamentos
+    -> Tratamentos (por causa das chaves estrangeiras).
+    Use db.merge() no SQLAlchemy se quiser preservar os ids.
+
+
+[ ] Passo 10 - Trocar a connection string no .env
+    ------------------------------------------------
+    Abrir .env e substituir DATABASE_URL por:
+
+    DATABASE_URL=postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres
+
+    Mantenha o .env FORA do git (ja esta no .gitignore). Nunca
+    commitar a senha do banco.
+
+
+[ ] Passo 11 - Trocar pyodbc por psycopg2
+    ------------------------------------------------
+    - requirements.txt: remover a linha "pyodbc==..."
+      e adicionar "psycopg2-binary==..." (versao atual)
+    - Instalar: pip install psycopg2-binary
+    - O codigo das queries NAO muda. O SQLAlchemy abstrai o driver.
+      So muda o prefixo da URL de mssql+pyodbc:// para postgresql://
+    - Verificar se ha algum "text(...)" raw SQL que use sintaxe
+      especifica do SQL Server (ex: IDENTITY, GETDATE()) e ajustar
+      para sintaxe do Postgres (NOW()).
+
+
+[ ] Passo 12 - Testar tudo
+    ------------------------------------------------
+    - Rodar os testes:   .venv\Scripts\pytest tests/  -> 66 passando
+    - Rodar o lint:      .venv\Scripts\ruff check .
+    - Abrir o app e testar: login, pacientes, agenda, faltantes,
+      orcamento.
+    - Validar no Supabase que os dados apareceram (Table Editor).
+
+    OBS: se algum teste falhar so por causa do driver (conexao),
+    lembre que os testes usam SQLite em memoria - nao dependem
+    nem do SQL Server nem do Supabase.
+
+
+==================================================================
+ORDEM RESUMIDA
+==================================================================
+
+    Fase 1 (Login):  Passos 1 -> 2 -> 3 -> 4 -> 5 -> 6
+    Fase 2 (Cloud):  Passos 7 -> 8 -> 9 -> 10 -> 11 -> 12
+
+Sugestao de ritmo: 1 passo por sessao de estudo. Nao precisa
+fazer tudo de uma vez. Cada passo completo e uma vitoria.
+
+==================================================================
+PARA APRENDER (material de apoio)
+==================================================================
+
+- Login/hash: pesquisar "sqlalchemy bcrypt python login desktop"
+- Supabase: ver documentacao oficial https://supabase.com/docs
+- SQLAlchemy com Postgres: a URL muda, o resto e igual
+- Migracao de dados: primeiro exportar de um, depois importar no outro
