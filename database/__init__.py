@@ -1,3 +1,6 @@
+from .usuarios import(
+    create_user
+)
 from .consultas import (
     buscar_consulta_Atual,
     buscar_consulta_por_id,

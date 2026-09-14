@@ -3,7 +3,7 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
-class Usuarios(Base):
+class Usuario(Base):
     __tablename__ = "Usuarios"
 
     id = Column(Integer, primary_key=True)
