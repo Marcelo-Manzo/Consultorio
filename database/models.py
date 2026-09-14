@@ -3,6 +3,14 @@ from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
 
+class Usuarios(Base):
+    __tablename__ = "Usuarios"
+
+    id = Column(Integer, primary_key=True)
+    nome = Column(String)
+    email = Column(String, unique=True)
+    senha_hash = Column(String)
+
 
 class Paciente(Base):
     __tablename__ = "Pacientes"

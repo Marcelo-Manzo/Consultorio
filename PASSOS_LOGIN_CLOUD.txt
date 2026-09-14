@@ -13,7 +13,7 @@ Quando terminar um passo, marque com [x].
 FASE 1: LOGIN (faca primeiro - mais facil)
 ==================================================================
 
-[ ] Passo 1 - Criar tabela Usuarios no SQL Server local
+[X] Passo 1 - Criar tabela Usuarios no SQL Server local
     ------------------------------------------------
     Rode no SQL Server Management Studio (ou no terminal):
 
@@ -27,7 +27,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
     Conferir depois: SELECT * FROM Usuarios;  -> tabela vazia
 
 
-[ ] Passo 2 - Adicionar model em database/models.py
+[X] Passo 2 - Adicionar model em database/models.py
     ------------------------------------------------
     Abrir database/models.py e adicionar:
 
