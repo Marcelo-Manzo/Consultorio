@@ -77,7 +77,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
         - senha certa -> chama a funcao de sucesso que abre o App
 
 
-[ ] Passo 5 - Alterar app.py
+[X] Passo 5 - Alterar app.py
     ------------------------------------------------
     No final do arquivo, em vez de abrir App() direto:
 
