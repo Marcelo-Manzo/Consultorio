@@ -4,6 +4,7 @@ import customtkinter as ctk
 
 from database.consultas import buscar_consulta_Atual
 from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes
+from views.login import mostrar as mostrar_login
 
 # IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
@@ -146,6 +147,12 @@ class App(ctk.CTk):
         debug.mostrar(self.main_frame)
 
 
-if __name__ == "__main__":
+def abrir_app(usuario):
+    janela_login.destroy()
     app = App()
     app.mainloop()
+
+
+if __name__ == "__main__":
+    janela_login = mostrar_login(on_success=abrir_app)
+    janela_login.mainloop()
