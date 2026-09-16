@@ -40,7 +40,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
         senha_hash = Column(String)
 
 
-[ ] Passo 3 - Criar database/usuarios.py
+[X] Passo 3 - Criar database/usuarios.py
     ------------------------------------------------
     Instalar a lib de hash primeiro:
         pip install bcrypt
