@@ -1,6 +1,3 @@
-from .usuarios import(
-    create_user
-)
 from .consultas import (
     buscar_consulta_Atual,
     buscar_consulta_por_id,
@@ -35,9 +32,23 @@ from .pacientes import (
     excluir_paciente_por_id,
     listar_pacientes,
 )
+from .usuarios import (
+    create_user,
+    delete_user_by_id,
+    get_user_by_email,
+    get_user_by_id,
+    update_user_password,
+    validar_senha,
+)
 
 __all__ = [
     "atualizar_paciente",
+    "create_user",
+    "get_user_by_id",
+    "get_user_by_email",
+    "update_user_password",
+    "delete_user_by_id",
+    "validar_senha",
     "atualizar_status_orcamento",
     "buscar_orcamento_por_id_consulta",
     "buscar_paciente_por_cpf",
