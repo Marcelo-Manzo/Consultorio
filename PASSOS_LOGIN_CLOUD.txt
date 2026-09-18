@@ -61,7 +61,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
     validar: bcrypt.checkpw(senha.encode(), hash.encode())
 
 
-[ ] Passo 4 - Criar views/login.py
+[X] Passo 4 - Criar views/login.py
     ------------------------------------------------
     Tela de login usando CustomTkinter:
         - Campo EMAIL
