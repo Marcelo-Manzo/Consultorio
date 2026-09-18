@@ -1,6 +1,8 @@
 import customtkinter as ctk
 
 from database import get_user_by_email, validar_senha
+from views.helpers import criar_campo_senha
+from views.usuarios import abrir_criar_usuario
 
 
 def mostrar(on_success=None):
@@ -13,15 +15,15 @@ def mostrar(on_success=None):
     """
     janela = ctk.CTk()
     janela.title("Consultório — Login")
-    janela.geometry("420x480")
+    janela.geometry("420x520")
     janela.resizable(False, False)
 
     # Centraliza a janela na tela
     largura_tela = janela.winfo_screenwidth()
     altura_tela = janela.winfo_screenheight()
     pos_x = int((largura_tela - 420) / 2)
-    pos_y = int((altura_tela - 480) / 2)
-    janela.geometry(f"420x480+{pos_x}+{pos_y}")
+    pos_y = int((altura_tela - 520) / 2)
+    janela.geometry(f"420x520+{pos_x}+{pos_y}")
 
     frame_login = ctk.CTkFrame(
         janela,
@@ -52,14 +54,7 @@ def mostrar(on_success=None):
     )
     email_entry.pack(fill="x", padx=30, pady=5)
 
-    senha_entry = ctk.CTkEntry(
-        frame_login,
-        placeholder_text="Senha",
-        show="*",
-        fg_color="#2b2b2b",
-        height=38,
-        corner_radius=8,
-    )
+    senha_entry = criar_campo_senha(frame_login)
     senha_entry.pack(fill="x", padx=30, pady=5)
 
     resultado_label = ctk.CTkLabel(frame_login, text="", font=("Segoe UI", 12))
@@ -100,7 +95,22 @@ def mostrar(on_success=None):
         font=("Segoe UI", 14, "bold"),
         height=40,
         corner_radius=8,
-    ).pack(fill="x", padx=30, pady=(5, 15))
+    ).pack(fill="x", padx=30, pady=(5, 8))
+
+    ctk.CTkLabel(
+        frame_login, text="Ainda não tem acesso?", font=("Segoe UI", 11), text_color="#9ca3af"
+    ).pack(pady=(2, 2))
+
+    ctk.CTkButton(
+        frame_login,
+        text="Criar Usuário",
+        command=lambda: abrir_criar_usuario(janela),
+        fg_color="#2b2b2b",
+        hover_color="#3a3a3a",
+        font=("Segoe UI", 12, "bold"),
+        height=36,
+        corner_radius=8,
+    ).pack(fill="x", padx=30, pady=(2, 10))
 
     email_entry.bind("<Return>", tentar_login)
     senha_entry.bind("<Return>", tentar_login)

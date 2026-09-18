@@ -3,7 +3,7 @@ from datetime import datetime
 import customtkinter as ctk
 
 from database.consultas import buscar_consulta_Atual
-from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes
+from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes, usuarios
 from views.login import mostrar as mostrar_login
 
 # IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
@@ -145,6 +145,10 @@ class App(ctk.CTk):
     def mostrar_debug(self):
         self.limpar_frame()
         debug.mostrar(self.main_frame)
+
+    def mostrar_usuarios(self):
+        self.limpar_frame()
+        usuarios.mostrar(self.main_frame)
 
 
 def abrir_app(usuario):
