@@ -91,7 +91,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
         app_login.mainloop()
 
 
-[ ] Passo 6 - Criar usuario admin inicial
+[x] Passo 6 - Criar usuario admin inicial
     ------------------------------------------------
     Criar um script criar_admin.py na raiz (temporario, pode deletar
     depois) que insere um usuario seu:
