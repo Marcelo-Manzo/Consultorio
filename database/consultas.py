@@ -122,6 +122,41 @@ def listar_consultas_com_paciente_por_data(data_selecionada):
         ]
 
 
+def listar_consultas_com_paciente_por_periodo(data_inicio, data_fim):
+    """Busca consultas (com paciente) no intervalo [data_inicio, data_fim) em UMA query.
+
+    Mesma saída de listar_consultas_com_paciente_por_data, mas agrupada em um
+    único round-trip — evita N queries na agenda semanal (uma por dia).
+    :param data_inicio: datetime (inclusive)
+    :param data_fim: datetime (exclusive)
+    """
+    with get_db() as db:
+        resultados = (
+            db.query(Consulta, Paciente)
+            .join(Paciente, Consulta.paciente_id == Paciente.id)
+            .filter(
+                Consulta.data >= data_inicio,
+                Consulta.data < data_fim,
+                Consulta.compareceu.in_([0, 1]),
+            )
+            .order_by(Consulta.data.asc())
+            .all()
+        )
+        return [
+            {
+                "consulta_id": c.id,
+                "data": c.data,
+                "tratamento": c.tratamento,
+                "valor": c.valor,
+                "metodo_pagamento": c.metodo_pagamento,
+                "compareceu": c.compareceu,
+                "paciente_id": p.id,
+                "nome": p.nome,
+            }
+            for c, p in resultados
+        ]
+
+
 def listar_consultas_paciente(paciente_id):
     with get_db() as db:
         return (

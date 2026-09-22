@@ -5,7 +5,7 @@ import customtkinter as ctk
 from database.consultas import (
     criar_consulta,
     deletar_consulta,
-    listar_consultas_com_paciente_por_data,
+    listar_consultas_com_paciente_por_periodo,
     listar_tratamentos,
     update_consulta,
 )
@@ -89,6 +89,19 @@ def mostrar(parent):
         mes_ano_texto = inicio_semana.strftime("%B / %Y").capitalize()
         titulo.configure(text=f"Agenda — {mes_ano_texto}")
 
+        # Busca TODA a semana em UMA query (5 dias em um único round-trip),
+        # depois agrupa em memória por data para cada coluna.
+        fim_semana = inicio_semana + timedelta(days=5)
+        try:
+            consultas_semana = listar_consultas_com_paciente_por_periodo(inicio_semana, fim_semana)
+        except Exception:
+            consultas_semana = []
+
+        consultas_por_dia = {}
+        for c in consultas_semana:
+            chave = c["data"].strftime("%Y-%m-%d")
+            consultas_por_dia.setdefault(chave, []).append(c)
+
         # Loop para varrer as colunas fixas e atualizar o conteúdo interno de cada dia
         for i in range(5):
             data_dia = inicio_semana + timedelta(days=i)
@@ -101,14 +114,9 @@ def mostrar(parent):
             for widget in scroll_dia.winfo_children():
                 widget.destroy()
 
-            # Formata a data atual da coluna para o banco de dados
+            # Formata a data atual da coluna para agrupar as consultas
             data_banco = data_dia.strftime("%Y-%m-%d")
-
-            # Busca todas as consultas do dia contendo o JOIN com os dados dos pacientes mapeados
-            try:
-                consultas_dia = listar_consultas_com_paciente_por_data(data_banco)
-            except Exception:
-                consultas_dia = []
+            consultas_dia = consultas_por_dia.get(data_banco, [])
 
             # Varremos a lista estática de horários um por um
             for hora_teste in horarios:

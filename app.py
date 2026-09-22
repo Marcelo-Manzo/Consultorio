@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import customtkinter as ctk
@@ -13,6 +14,7 @@ ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
 # horarios_padrao = ["08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"]
+executor_banco = ThreadPoolExecutor(max_workers=1)
 
 
 class App(ctk.CTk):
@@ -107,15 +109,23 @@ class App(ctk.CTk):
         # Descobre o bloco de 30 min atual (ex: 2026-07-01 15:30:00)
         bloco_atual = self.obter_bloco_horario_atual()
 
-        # Busca no banco usando o horário cravado do bloco
-        consulta_no_bloco = buscar_consulta_Atual(bloco_atual)
-
-        # Se achar e ela ainda for status 0, o pop-up abre
-        if consulta_no_bloco:
-            self.disparar_popup(consulta_no_bloco["data"])
+        # Consulta ao banco em THREAD separada: a busca na nuvem demora ~1s e
+        # não pode congelar a interface. Quando terminar, agenda o pop-up
+        # (que VOLTA para a thread principal do Tk).
+        executor_banco.submit(self._checar_consulta_no_bloco, bloco_atual)
 
         # Pode rodar a checagem a cada 5 minutos (300000 ms) em vez de 1 minuto!
         self.after(30000, self.verificar_horarios_consultas)
+
+    def _checar_consulta_no_bloco(self, bloco_atual):
+        try:
+            consulta_no_bloco = buscar_consulta_Atual(bloco_atual)
+        except Exception:
+            consulta_no_bloco = None
+
+        if consulta_no_bloco:
+            # after() só pode ser chamado pela thread principal; agendamos aqui.
+            self.after(0, lambda: self.disparar_popup(consulta_no_bloco["data"]))
 
     # ==================== GERENCIAMENTO DE TELAS ====================
     def limpar_frame(self):
