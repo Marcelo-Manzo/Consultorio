@@ -1,30 +1,27 @@
-from sqlalchemy import create_engine, inspect, select, text
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import sessionmaker
 
 from database import models
 from database.connection import DATABASE_URL
 
-# URL do Supabase (preencha no .env: SUPABASE_URL=postgresql://...)
-SUPABASE_URL = None
-try:
-    from dotenv import load_dotenv
-    import os
+# Carrega o .env da raiz do projeto (caminho explícito)
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
-    load_dotenv()
-    SUPABASE_URL = os.getenv("SUPABASE_URL")
-except Exception:
-    pass
-
+SUPABASE_URL = os.getenv("SUPABASE_URL")
 if not SUPABASE_URL:
     print("❌ Variável SUPABASE_URL não encontrada no .env.")
-    print("Adicione no .env: SUPABASE_URL=postgresql://postgres:SUA_SENHA@db.xxxx.supabase.co:5432/postgres")
+    print("Adicione no .env: SUPABASE_URL=postgresql://...")
     raise SystemExit(1)
 
 # ==================== CONEXÕES ====================
 print("Conectando ao SQL Server (origem)...")
 engine_origem = create_engine(DATABASE_URL)
 print("Conectando ao Supabase (destino)...")
-engine_destino = create_engine(SUPABASE_URL)
+engine_destino = create_engine(SUPABASE_URL, connect_args={"connect_timeout": 15})
 
 Sessao_origem = sessionmaker(bind=engine_origem)
 Sessao_destino = sessionmaker(bind=engine_destino)
@@ -66,14 +63,21 @@ def main():
             try:
                 conn.execute(text(f'DELETE FROM "{nome}"'))
                 print(f"    - {nome} limpa")
-            except Exception as e:
-                print(f"    - {nome}: erro ao limpar ({e})")
+            except Exception as ex:
+                print(f"    - {nome}: erro ao limpar ({ex})")
         conn.commit()
 
     for modelo, nome in TABELAS:
         _copiar_tabela(modelo, nome)
 
-    print("\n✅ Migração concluída!")
+    # Verificação final no Supabase
+    print("\n=== VERIFICAÇÃO NO SUPABASE ===")
+    with engine_destino.connect() as conn:
+        for _, nome in TABELAS:
+            qtd = conn.execute(text(f'SELECT COUNT(*) FROM "{nome}"')).scalar()
+            print(f"    {nome}: {qtd} registros")
+
+    print("\n[OK] Migracao concluida!")
 
 
 if __name__ == "__main__":
