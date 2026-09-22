@@ -42,8 +42,8 @@ class Orcamento(Base):
     __tablename__ = "Orcamentos"
 
     id = Column(Integer, primary_key=True)
-    consulta_id = Column(Integer)
-    paciente_id = Column(Integer)
+    consulta_id = Column(Integer, ForeignKey("Consultas.id"))
+    paciente_id = Column(Integer, ForeignKey("Pacientes.id"))
     valor = Column(Float)
     forma_pagamento = Column(String)
     status = Column(Integer, default=0)

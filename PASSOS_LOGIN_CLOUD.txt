@@ -117,8 +117,10 @@ FASE 2: CLOUD (Supabase - gratis)
     2. Criar um novo projeto (nome: consultorio)
        - Anotar a URL do projeto (ex: https://xxxx.supabase.co)
        - Anotar a SENHA do banco (gerada na criacao)
+       senha: Sp7vbs0lJW20IAxj
     3. Menu Settings > Database -> copiar a connection string
        (formato: postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres)
+       postgresql://postgres:Sp7vbs0lJW20IAxj@db.olmgrbbmitbfmhnselbb.supabase.co:5432/postgres
 
 
 [ ] Passo 8 - Criar as tabelas no Supabase

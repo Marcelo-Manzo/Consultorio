@@ -1,0 +1,89 @@
+==================================================================
+CRIACAO DAS TABELAS NO SUPABASE (PostgreSQL)
+==================================================================
+Como usar:
+1. Abra o painel do Supabase -> menu "SQL Editor" -> "New query"
+2. Cole o bloco abaixo e clique em "Run" (ou "Run selected")
+3. Rode o bloco INTEIRO de uma vez (cria as 5 tabelas)
+
+OBS: como o SQL Server ja existe com os mesmos nomes, o ORM mapeia
+as tabelas do Supabase sem nenhuma mudanca de codigo Python.
+
+==================================================================
+SQL (cole tudo no SQL Editor)
+==================================================================
+
+-- Tabela de usuarios (login do sistema)
+CREATE TABLE IF NOT EXISTS "Usuarios" (
+    id           SERIAL PRIMARY KEY,
+    nome         VARCHAR(100) NOT NULL,
+    email        VARCHAR(150) NOT NULL UNIQUE,
+    senha_hash   VARCHAR(255) NOT NULL
+);
+
+-- Pacientes
+CREATE TABLE IF NOT EXISTS "Pacientes" (
+    id         SERIAL PRIMARY KEY,
+    nome       VARCHAR(150),
+    telefone   VARCHAR(30),
+    cpf        VARCHAR(20)
+);
+
+-- Consultas (agendamentos)
+CREATE TABLE IF NOT EXISTS "Consultas" (
+    id               SERIAL PRIMARY KEY,
+    paciente_id      INTEGER REFERENCES "Pacientes"(id),
+    data             TIMESTAMP,
+    tratamento       VARCHAR(150),
+    valor            NUMERIC(10,2),
+    metodo_pagamento VARCHAR(50),
+    compareceu       INTEGER DEFAULT 0,
+    pago             BOOLEAN DEFAULT FALSE
+);
+
+-- Orcamentos (vinculado a Consulta e Paciente via FOREIGN KEY)
+CREATE TABLE IF NOT EXISTS "Orcamentos" (
+    id               SERIAL PRIMARY KEY,
+    consulta_id      INTEGER REFERENCES "Consultas"(id),
+    paciente_id      INTEGER REFERENCES "Pacientes"(id),
+    valor            NUMERIC(10,2),
+    forma_pagamento  VARCHAR(50),
+    status           INTEGER DEFAULT 0,
+    data_criacao     TIMESTAMP
+);
+
+-- Tratamentos (lista de procedimentos com valor padrao)
+CREATE TABLE IF NOT EXISTS "Tratamentos" (
+    id    SERIAL PRIMARY KEY,
+    nome  VARCHAR(150),
+    valor NUMERIC(10,2)
+);
+
+==================================================================
+NOTAS IMPORTANTES
+==================================================================
+1. SERIAL = auto-incremento do Postgres (equivalente ao IDENTITY
+   do SQL Server). Se preferir o jeito moderno do Postgres 10+:
+       id INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY
+
+2. "Orcamentos" usa FOREIGN KEY para Consultas(id) e para
+   Pacientes(id) - igual ao banco SQL Server real (confirmei:
+   as FKs existem la). Por isso o model database/models.py
+   foi atualizado com essas mesmas FKs (ForeignKey em
+   consulta_id e paciente_id).
+
+3. IMPORTANTE: o codigo deletar_consulta foi ajustado para
+   apagar os orcamentos vinculados ANTES de apagar a consulta,
+   senao a FK bloqueia a exclusao e o app engole o erro
+   silenciosamente.
+
+3. valor como NUMERIC(10,2) (dinheiro) em vez de FLOAT:
+   melhor pratica para valores monetarios. O model usa Float,
+   e o SQLAlchemy converte automaticamente (NUMERIC vira float
+   no Python). Nao precisa mudar codigo.
+
+4. Depois de rodar, confira no menu "Table Editor" se as 5
+   tabelas apareceram.
+
+5. Proximo passo (Passo 9): exportar os dados do SQL Server
+   local para o Supabase antes de trocar o .env (Passo 10).

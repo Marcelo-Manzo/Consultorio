@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 
 from .connection import get_db
-from .models import Consulta, Paciente, Tratamento
+from .models import Consulta, Orcamento, Paciente, Tratamento
 
 
 def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento, compareceu=0):
@@ -62,10 +62,11 @@ def buscar_consulta_Atual(data_e_horario):
 
 def deletar_consulta(consulta_id):
     with get_db() as db:
+        db.query(Orcamento).filter(Orcamento.consulta_id == consulta_id).delete()
         consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
         if consulta:
             db.delete(consulta)
-            db.commit()
+        db.commit()
 
 
 def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):

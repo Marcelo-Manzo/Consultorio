@@ -16,6 +16,7 @@ from database.consultas import (
     marcar_pagamento,
     update_consulta,
 )
+from database.orcamento import listar_orcamentos_por_mes
 
 from .conftest import patch_db
 
@@ -51,6 +52,23 @@ def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", va
     db_session.commit()
     db_session.refresh(c)
     return c
+
+
+def _criar_orcamento(db_session, consulta_id, paciente_id, valor=150.0, status=0, data_criacao=None):
+    if data_criacao is None:
+        data_criacao = datetime(2026, 8, 31, 10, 0)
+    o = models.Orcamento(
+        consulta_id=consulta_id,
+        paciente_id=paciente_id,
+        valor=valor,
+        forma_pagamento="Pix",
+        status=status,
+        data_criacao=data_criacao,
+    )
+    db_session.add(o)
+    db_session.commit()
+    db_session.refresh(o)
+    return o
 
 
 # ==================== criar_consulta ====================
@@ -147,6 +165,23 @@ def test_deletar_consulta(db_session):
     with patch_db("consultas", db_session):
         resultado = buscar_consulta_por_id(consulta.id)
     assert resultado is None
+
+
+def test_deletar_consulta_remove_orcamento_vinculado(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+    _criar_orcamento(db_session, consulta.id, p.id)
+
+    with patch_db("consultas", db_session):
+        deletar_consulta(consulta.id)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado is None
+
+    with patch_db("orcamento", db_session):
+        restantes = listar_orcamentos_por_mes(8, 2026)
+    assert restantes == []
 
 
 # ==================== update_consulta ====================
