@@ -111,7 +111,7 @@ FASE 1: LOGIN (faca primeiro - mais facil)
 FASE 2: CLOUD (Supabase - gratis)
 ==================================================================
 
-[ ] Passo 7 - Criar conta no Supabase
+[x] Passo 7 - Criar conta no Supabase
     ------------------------------------------------
     1. Acessar https://supabase.com -> Sign up (pode usar GitHub)
     2. Criar um novo projeto (nome: consultorio)
@@ -123,7 +123,7 @@ FASE 2: CLOUD (Supabase - gratis)
        postgresql://postgres:Sp7vbs0lJW20IAxj@db.olmgrbbmitbfmhnselbb.supabase.co:5432/postgres
 
 
-[ ] Passo 8 - Criar as tabelas no Supabase
+[x] Passo 8 - Criar as tabelas no Supabase
     ------------------------------------------------
     No painel: Menu SQL Editor -> New query
     Rodar os CREATE TABLE de TODAS as tabelas, com os mesmos nomes e
