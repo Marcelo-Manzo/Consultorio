@@ -4,6 +4,7 @@ from datetime import datetime
 import customtkinter as ctk
 
 from database.consultas import buscar_consulta_Atual
+from database.contexto import definir_usuario
 from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes, usuarios
 from views.login import mostrar as mostrar_login
 
@@ -162,6 +163,7 @@ class App(ctk.CTk):
 
 
 def abrir_app(usuario):
+    definir_usuario(usuario)
     janela_login.destroy()
     app = App()
     app.mainloop()
