@@ -161,7 +161,7 @@ FASE 2: CLOUD (Supabase - gratis)
     Use db.merge() no SQLAlchemy se quiser preservar os ids.
 
 
-[ ] Passo 10 - Trocar a connection string no .env
+[X] Passo 10 - Trocar a connection string no .env
     ------------------------------------------------
     Abrir .env e substituir DATABASE_URL por:
 
