@@ -16,13 +16,19 @@ from database.consultas import (
     marcar_pagamento,
     update_consulta,
 )
+from database.contexto import definir_usuario, usuario_atual
+from database.models import Usuario
 from database.orcamento import listar_orcamentos_por_mes
 
 from .conftest import patch_db
 
 
+def _uid():
+    return usuario_atual().id
+
+
 def _criar_paciente(db_session, nome="João", cpf="123.456.789-00"):
-    p = models.Paciente(nome=nome, telefone="11999998888", cpf=cpf)
+    p = models.Paciente(nome=nome, telefone="11999998888", cpf=cpf, usuario_id=_uid())
     db_session.add(p)
     db_session.commit()
     db_session.refresh(p)
@@ -30,7 +36,7 @@ def _criar_paciente(db_session, nome="João", cpf="123.456.789-00"):
 
 
 def _criar_tratamento(db_session, nome="Limpeza", valor=150.0):
-    t = models.Tratamento(nome=nome, valor=valor)
+    t = models.Tratamento(nome=nome, valor=valor, usuario_id=_uid())
     db_session.add(t)
     db_session.commit()
     db_session.refresh(t)
@@ -47,6 +53,7 @@ def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", va
         valor=valor,
         metodo_pagamento="Pix",
         compareceu=0,
+        usuario_id=_uid(),
     )
     db_session.add(c)
     db_session.commit()
@@ -64,6 +71,7 @@ def _criar_orcamento(db_session, consulta_id, paciente_id, valor=150.0, status=0
         forma_pagamento="Pix",
         status=status,
         data_criacao=data_criacao,
+        usuario_id=_uid(),
     )
     db_session.add(o)
     db_session.commit()
@@ -348,5 +356,126 @@ def test_listar_tratamentos_ordem(db_session):
     with patch_db("consultas", db_session):
         resultado = listar_tratamentos()
     assert [t.nome for t in resultado] == ["Alpha", "Zeta"]
+
+
+# ==================== Isolamento Multi-Usuário ====================
+
+
+def _criar_usuario(db_session, nome="Outro"):
+    u = Usuario(nome=nome, email=f"{nome.lower()}@teste.com")
+    db_session.add(u)
+    db_session.commit()
+    db_session.refresh(u)
+    return u
+
+
+def test_listar_consultas_so_do_usuario_logado(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            assert listar_consultas_data("2026-08-31") == []
+        with patch_db("consultas", db_session):
+            assert listar_consultas_com_paciente_por_data("2026-08-31") == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("consultas", db_session):
+        assert len(listar_consultas_data("2026-08-31")) == 1
+
+
+def test_buscar_consulta_de_outro_usuario_retorna_nada(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            assert buscar_consulta_por_id(consulta.id) is None
+        with patch_db("consultas", db_session):
+            assert buscar_consulta_por_id_dict(consulta.id) is None
+        with patch_db("consultas", db_session):
+            assert buscar_consulta_Atual(consulta.data) is None
+        with patch_db("consultas", db_session):
+            assert listar_consultas_paciente(p.id) == []
+    finally:
+        definir_usuario(usuario_logado)
+
+
+def test_atualizar_consulta_de_outro_usuario_nao_altera(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            update_consulta(consulta.id, "Hacker", datetime(2030, 1, 1, 8, 0), 1.0, "Nada")
+        with patch_db("consultas", db_session):
+            marcar_comparecimento(consulta.id, status=1)
+        with patch_db("consultas", db_session):
+            marcar_pagamento(consulta.id, True)
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.tratamento == "Limpeza"
+    assert resultado.compareceu == 0
+    assert resultado.pago is False
+
+
+def test_deletar_consulta_de_outro_usuario_nao_exclui(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            deletar_consulta(consulta.id)
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado is not None
+
+
+def test_listar_faltas_so_do_usuario_logado(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0))
+    c.compareceu = 2
+    db_session.commit()
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            assert listar_faltas_data("2026-08-31") == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("consultas", db_session):
+        assert len(listar_faltas_data("2026-08-31")) == 1
+
+
+def test_listar_tratamentos_so_do_usuario_logado(db_session, usuario_logado):
+    _criar_tratamento(db_session, nome="Limpeza")
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("consultas", db_session):
+            assert listar_tratamentos() == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("consultas", db_session):
+        assert len(listar_tratamentos()) == 1
 
 

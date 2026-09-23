@@ -1,7 +1,12 @@
 from datetime import datetime, timedelta
 
 from .connection import get_db
+from .contexto import usuario_id_obrigatorio
 from .models import Consulta, Orcamento, Paciente, Tratamento
+
+
+def _filtro_usuario():
+    return Consulta.usuario_id == usuario_id_obrigatorio()
 
 
 def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento, compareceu=0):
@@ -13,6 +18,7 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
             valor=valor,
             metodo_pagamento=metodo_pagamento,
             compareceu=compareceu,
+            usuario_id=usuario_id_obrigatorio(),
         )
         db.add(consulta)
         db.commit()
@@ -22,12 +28,14 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
 
 def buscar_consulta_por_id(consulta_id):
     with get_db() as db:
-        return db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        return db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
 
 
 def buscar_consulta_por_id_dict(consulta_id):
     with get_db() as db:
-        consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        consulta = (
+            db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
+        )
         if not consulta:
             return None
         return {
@@ -43,10 +51,15 @@ def buscar_consulta_por_id_dict(consulta_id):
 
 def buscar_consulta_Atual(data_e_horario):
     with get_db() as db:
+        uid = usuario_id_obrigatorio()
         consulta = (
             db.query(Consulta, Paciente)
             .join(Paciente, Consulta.paciente_id == Paciente.id)
-            .filter(Consulta.data == data_e_horario, Consulta.compareceu == 0)
+            .filter(
+                Consulta.data == data_e_horario,
+                Consulta.compareceu == 0,
+                Consulta.usuario_id == uid,
+            )
             .first()
         )
         if not consulta:
@@ -62,8 +75,15 @@ def buscar_consulta_Atual(data_e_horario):
 
 def deletar_consulta(consulta_id):
     with get_db() as db:
-        db.query(Orcamento).filter(Orcamento.consulta_id == consulta_id).delete()
-        consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        uid = usuario_id_obrigatorio()
+        db.query(Orcamento).filter(
+            Orcamento.consulta_id == consulta_id, Orcamento.usuario_id == uid
+        ).delete()
+        consulta = (
+            db.query(Consulta)
+            .filter(Consulta.id == consulta_id, Consulta.usuario_id == uid)
+            .first()
+        )
         if consulta:
             db.delete(consulta)
         db.commit()
@@ -71,7 +91,9 @@ def deletar_consulta(consulta_id):
 
 def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):
     with get_db() as db:
-        consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        consulta = (
+            db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
+        )
         if consulta:
             consulta.tratamento = treatment
             consulta.data = data_e_horario
@@ -86,7 +108,11 @@ def listar_consultas_data(data):
         fim = inicio + timedelta(days=1)
         return (
             db.query(Consulta)
-            .filter(Consulta.data >= inicio, Consulta.data < fim)
+            .filter(
+                Consulta.data >= inicio,
+                Consulta.data < fim,
+                _filtro_usuario(),
+            )
             .order_by(Consulta.data.asc())
             .all()
         )
@@ -103,6 +129,7 @@ def listar_consultas_com_paciente_por_data(data_selecionada):
                 Consulta.data >= inicio,
                 Consulta.data < fim,
                 Consulta.compareceu.in_([0, 1]),
+                _filtro_usuario(),
             )
             .order_by(Consulta.data.asc())
             .all()
@@ -138,6 +165,7 @@ def listar_consultas_com_paciente_por_periodo(data_inicio, data_fim):
                 Consulta.data >= data_inicio,
                 Consulta.data < data_fim,
                 Consulta.compareceu.in_([0, 1]),
+                _filtro_usuario(),
             )
             .order_by(Consulta.data.asc())
             .all()
@@ -161,7 +189,7 @@ def listar_consultas_paciente(paciente_id):
     with get_db() as db:
         return (
             db.query(Consulta)
-            .filter(Consulta.paciente_id == paciente_id)
+            .filter(Consulta.paciente_id == paciente_id, _filtro_usuario())
             .order_by(Consulta.data.desc())
             .all()
         )
@@ -178,6 +206,7 @@ def listar_faltas_data(data):
                 Consulta.compareceu == 2,
                 Consulta.data >= inicio,
                 Consulta.data < fim,
+                _filtro_usuario(),
             )
             .order_by(Consulta.data.desc())
             .all()
@@ -196,7 +225,9 @@ def listar_faltas_data(data):
 
 def marcar_comparecimento(consulta_id, status=1):
     with get_db() as db:
-        consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        consulta = (
+            db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
+        )
         if consulta:
             consulta.compareceu = status
             db.commit()
@@ -204,7 +235,9 @@ def marcar_comparecimento(consulta_id, status=1):
 
 def marcar_pagamento(consulta_id, pago):
     with get_db() as db:
-        consulta = db.query(Consulta).filter(Consulta.id == consulta_id).first()
+        consulta = (
+            db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
+        )
         if consulta:
             consulta.pago = pago
             db.commit()
@@ -212,4 +245,5 @@ def marcar_pagamento(consulta_id, pago):
 
 def listar_tratamentos():
     with get_db() as db:
-        return db.query(Tratamento).order_by(Tratamento.nome).all()
+        uid = usuario_id_obrigatorio()
+        return db.query(Tratamento).filter(Tratamento.usuario_id == uid).order_by(Tratamento.nome).all()
