@@ -1,0 +1,160 @@
+================================================================================
+PLANO — MULTI-USUÁRIO (Multi-Tenancy) — Consultório
+================================================================================
+
+OBJETIVO
+Cada usuário (Marcelo, sogra, etc.) enxerga APENAS os próprios dados.
+Sua sogra vê os pacientes dela, você vê os seus.
+
+PADRÃO ESCOLHIDO: coluna `usuario_id` em cada tabela (multi-tenancy)
+É o mesmo modelo usado por WhatsApp, Uber, Instagram e sistemas de clínica
+profissionais. Não criar tabelas separadas por usuário.
+
+--------------------------------------------------------------------------------
+1. DESEMPENHO (dúvida das 1.000.000 de linhas)
+--------------------------------------------------------------------------------
+Risco: "WHERE usuario_id = X" em 1M de linhas ficar lento?
+SOLUÇÃO: ÍNDICE no banco.
+
+    CREATE INDEX idx_consultas_usuario  ON "Consultas" (usuario_id, data);
+    CREATE INDEX idx_pacientes_usuario  ON "Pacientes" (usuario_id);
+    CREATE INDEX idx_orcamentos_usuario ON "Orcamentos" (usuario_id);
+
+Com índice (árvore binária), o Postgres encontra as linhas de um usuário em
+MILISSEGUNDOS, sem varrer a tabela. 1M de linhas é "nada" para Postgres.
+Mesmo padrão que escala para BILHÕES de linhas em apps grandes.
+
+------------------------------------------------------------------------------
+2. QUais TABELAS recebem `usuario_id`
+------------------------------------------------------------------------------
+Pacientes    -> SIM  (dado por usuário)
+Consultas    -> SIM  (agendamento por usuário)
+Orcamentos   -> SIM  (financeiro por usuário)
+Usuarios     -> NÃO  (é a própria tabela de usuários)
+Tratamentos  -> SIM  (cada usuário tem sua lista de serviços/preços) [DECIDIDO]
+
+------------------------------------------------------------------------------
+3. BANCO (Supabase) — SQL a rodar
+------------------------------------------------------------------------------
+IMPORTANTE: no PostgreSQL nomes de tabela com letra maiúscula exigem ASPAS DUPLAS.
+As tabelas deste projeto chamam-se "Pacientes", "Consultas", etc.
+
+    ALTER TABLE "Pacientes"   ADD COLUMN usuario_id INTEGER REFERENCES "Usuarios"(id);
+    ALTER TABLE "Consultas"   ADD COLUMN usuario_id INTEGER REFERENCES "Usuarios"(id);
+    ALTER TABLE "Orcamentos"  ADD COLUMN usuario_id INTEGER REFERENCES "Usuarios"(id);
+    ALTER TABLE "Tratamentos" ADD COLUMN usuario_id INTEGER REFERENCES "Usuarios"(id);
+
+    CREATE INDEX idx_consultas_usuario   ON "Consultas"   (usuario_id, data);
+    CREATE INDEX idx_pacientes_usuario   ON "Pacientes"   (usuario_id);
+    CREATE INDEX idx_orcamentos_usuario  ON "Orcamentos"  (usuario_id);
+    CREATE INDEX idx_tratamentos_usuario ON "Tratamentos" (usuario_id);
+
+    -- MIGRAÇÃO dos dados existentes: tudo vira do usuário Marcelo (id 3)
+    UPDATE "Pacientes"   SET usuario_id = 3 WHERE usuario_id IS NULL;
+    UPDATE "Consultas"   SET usuario_id = 3 WHERE usuario_id IS NULL;
+    UPDATE "Orcamentos"  SET usuario_id = 3 WHERE usuario_id IS NULL;
+    UPDATE "Tratamentos" SET usuario_id = 3 WHERE usuario_id IS NULL;
+
+    -- Depois da migração, definir NOT NULL:
+    -- ALTER TABLE "Pacientes"   ALTER COLUMN usuario_id SET NOT NULL;
+    -- ALTER TABLE "Consultas"   ALTER COLUMN usuario_id SET NOT NULL;
+    -- ALTER TABLE "Orcamentos"  ALTER COLUMN usuario_id SET NOT NULL;
+    -- ALTER TABLE "Tratamentos" ALTER COLUMN usuario_id SET NOT NULL;
+
+--------------------------------------------------------------------------------
+4. CODEBASE — mudanças por arquivo
+--------------------------------------------------------------------------------
+database/models.py
+  - Adicionar coluna usuario_id em: Paciente, Consulta, Orcamento, Tratamento
+
+database/pacientes.py
+  - criar_paciente(...): recebe usuario_id e grava
+  - listar_pacientes(usuario_id)
+  - buscar_paciente_por_nome(usuario_id, nome)
+  - buscar_paciente_por_cpf(usuario_id, cpf)
+  - buscar_paciente_por_id(usuario_id, id)
+  - atualizar_paciente(...): valida dono (usuario_id)
+  - excluir_paciente_por_id(usuario_id, id): valida dono
+
+database/consultas.py
+  - criar_consulta(...): recebe usuario_id e grava
+  - buscar_consulta_por_id(usuario_id, id)
+  - buscar_consulta_por_id_dict(usuario_id, id)
+  - buscar_consulta_Atual(usuario_id, data)
+  - deletar_consulta(usuario_id, id)
+  - update_consulta(usuario_id, id, ...)
+  - listar_consultas_data(usuario_id, data)
+  - listar_consultas_com_paciente_por_data(usuario_id, data)
+  - listar_consultas_com_paciente_por_periodo(usuario_id, inicio, fim)
+  - listar_consultas_paciente(usuario_id, paciente_id)
+  - listar_faltas_data(usuario_id, data)
+  - marcar_comparecimento(usuario_id, id, status)
+  - marcar_pagamento(usuario_id, id, pago)
+  - listar_tratamentos(usuario_id)  <- agora por usuário (filtra o dono)
+
+database/orcamento.py
+  - criar_orcamento(...): recebe usuario_id e grava
+  - update_orcamento_por_consulta(usuario_id, ...)
+  - listar_orcamentos_por_mes(usuario_id, mes, ano)
+  - atualizar_status_orcamento(usuario_id, id, status)
+  - obter_ganho_total_mes(usuario_id, mes, ano)
+  - lista_orcamentos_por_status_data(usuario_id, ...)
+  - buscar_orcamento_por_id_consulta(usuario_id, id)
+  - deletar_orcamento(usuario_id, id)
+
+views/login.py
+  - login ok -> on_success(usuario) já recebe o usuário
+
+app.py
+  - guardar usuário logado (self.usuario_logado = usuario.id)
+  - repassar usuario_id pra cada tela (agenda, pacientes, faltantes,
+    contabilidade, usuarios, debug) e pro popup de comparecimento
+
+views/agenda_Semanal.py   -> passa usuario_id em toda chamada de banco
+views/pacientes.py        -> idem
+views/faltantes.py        -> idem
+views/orcamento.py        -> idem
+views/consultas.py        -> idem
+views/usuarios.py         -> idem
+views/PopUpComparecimento.py -> idem (popup recebe usuario_id via closure)
+
+database/usuarios.py
+  - NÃO muda (tabela de usuários continua igual)
+
+--------------------------------------------------------------------------------
+5. SEQUÊNCIA DE EXECUÇÃO (recomendada)
+--------------------------------------------------------------------------------
+1. Rodar SQL do item 3 no Supabase (ALTER + índice + migração dos dados)
+2. models.py: adicionar usuario_id
+3. database/*.py: adicionar filtro usuario_id em TODAS as funções
+4. app.py + login: guardar e repassar usuário logado
+5. views/*.py: passar usuario_id em cada chamada de banco
+6. Testes: atualizar os 78 existentes + criar testes de ISOLAMENTO
+   (ex: usuário 1 NÃO vê dados do usuário 2)
+7. Rodar suite completa + ruff
+8. Testar manual: criar 2º usuário e confirmar que não vê dados do Marcelo
+
+--------------------------------------------------------------------------------
+6. CHECKLIST DE ISOLAMENTO (obrigatório)
+--------------------------------------------------------------------------------
+[ ] Usuário A cria paciente -> não aparece pra Usuário B
+[ ] Usuário A vê apenas as consultas dele
+[ ] Usuário A edita/exclui só os próprios registros
+[ ] Dashboard de orçamento só soma os do usuário logado
+[ ] Índices criados (conferir com EXPLAIN para usuario_id)
+[ ] Dados antigos migrados para o usuário correto (Marcelo id=3)
+
+--------------------------------------------------------------------------------
+7. SEGURANÇA (futuro, opcional)
+--------------------------------------------------------------------------------
+Postgres (Supabase) tem Row Level Security (RLS):
+  - função SQL que aplica "cada usuário só vê o próprio"
+  - camada extra DEPOIS do código, pega erros do app
+  - ativar quando o app estabilizar
+
+================================================================================
+DECISÕES PENDENTES (usuário precisa confirmar):
+  1) Tratamentos: globais (simples) ou por usuário (preços individuais)?
+     RESPOSTA: POR USUÁRIO (decidido) ✅
+  2) Migração inicial: dados atuais vão para o id 3 (Marcelo)? -> CONFIRMAR
+================================================================================
