@@ -15,6 +15,7 @@ class Usuario(Base):
 class Paciente(Base):
     __tablename__ = "Pacientes"
 
+    usuario_id = Column(Integer, ForeignKey("Usuarios.id"))
     id = Column(Integer, primary_key=True)
     nome = Column(String)
     telefone = Column(String)
@@ -26,6 +27,7 @@ class Paciente(Base):
 class Consulta(Base):
     __tablename__ = "Consultas"
 
+    usuario_id = Column(Integer, ForeignKey("Usuarios.id"))
     id = Column(Integer, primary_key=True)
     paciente_id = Column(Integer, ForeignKey("Pacientes.id"))
     data = Column(DateTime)
@@ -41,6 +43,7 @@ class Consulta(Base):
 class Orcamento(Base):
     __tablename__ = "Orcamentos"
 
+    usuario_id = Column(Integer, ForeignKey("Usuarios.id"))
     id = Column(Integer, primary_key=True)
     consulta_id = Column(Integer, ForeignKey("Consultas.id"))
     paciente_id = Column(Integer, ForeignKey("Pacientes.id"))
@@ -53,6 +56,7 @@ class Orcamento(Base):
 class Tratamento(Base):
     __tablename__ = "Tratamentos"
 
+    usuario_id = Column(Integer, ForeignKey("Usuarios.id"))
     id = Column(Integer, primary_key=True)
     nome = Column(String)
     valor = Column(Float)
