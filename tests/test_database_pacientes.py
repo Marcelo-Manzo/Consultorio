@@ -1,3 +1,5 @@
+from database.contexto import definir_usuario
+from database.models import Usuario
 from database.pacientes import (
     atualizar_paciente,
     buscar_paciente_por_cpf,
@@ -129,5 +131,82 @@ def test_excluir_paciente_por_id(db_session, insert_paciente):
     with patch_db("pacientes", db_session):
         resultado = buscar_paciente_por_id(paciente.id)
     assert resultado is None
+
+
+# ==================== Isolamento Multi-Usuário ====================
+
+
+def _criar_usuario(db_session, nome="Outro"):
+    u = Usuario(nome=nome, email=f"{nome.lower()}@teste.com")
+    db_session.add(u)
+    db_session.commit()
+    db_session.refresh(u)
+    return u
+
+
+def test_listar_pacientes_so_do_usuario_logado(db_session, insert_paciente, usuario_logado):
+    insert_paciente()  # do usuário logado (id=1)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("pacientes", db_session):
+            pacientes = listar_pacientes()
+        assert pacientes == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("pacientes", db_session):
+        pacientes = listar_pacientes()
+    assert len(pacientes) == 1
+
+
+def test_buscar_paciente_de_outro_usuario_retorna_nada(db_session, insert_paciente, usuario_logado):
+    paciente = insert_paciente()  # do usuário logado (id=1)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("pacientes", db_session):
+            assert buscar_paciente_por_id(paciente.id) is None
+        with patch_db("pacientes", db_session):
+            assert buscar_paciente_por_nome("João") == []
+        with patch_db("pacientes", db_session):
+            assert buscar_paciente_por_cpf("123.456.789-00") == []
+    finally:
+        definir_usuario(usuario_logado)
+
+
+def test_atualizar_paciente_de_outro_usuario_nao_altera(db_session, insert_paciente, usuario_logado):
+    paciente = insert_paciente()  # do usuário logado (id=1)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("pacientes", db_session):
+            atualizar_paciente(paciente.id, "Hacker", "11900000000", "000.000.000-00")
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("pacientes", db_session):
+        resultado = buscar_paciente_por_id(paciente.id)
+    assert resultado.nome == "João Silva"
+    assert resultado.cpf == "123.456.789-00"
+
+
+def test_excluir_paciente_de_outro_usuario_nao_exclui(db_session, insert_paciente, usuario_logado):
+    paciente = insert_paciente()  # do usuário logado (id=1)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("pacientes", db_session):
+            excluir_paciente_por_id(paciente.id)
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("pacientes", db_session):
+        resultado = buscar_paciente_por_id(paciente.id)
+    assert resultado is not None
 
 

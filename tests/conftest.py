@@ -6,6 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from database import models
+from database.contexto import definir_usuario
 from database.models import Base
 
 
@@ -21,11 +22,29 @@ def db_session():
     engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def usuario_logado():
+    """Define um usuário no contexto durante todo o teste (multi-usuário).
+
+    O objeto NÃO é persistido no banco: apenas fornece o id ao contexto.
+    O id voltado para 999999 para nunca colidir com os usuários reais criados
+    nos testes (que usam autoincrement). As funções de banco filtram por
+    usuario_atual().id, então todos os dados criados nos testes pertencem a
+    esse usuário. Resetado ao fim do teste.
+    """
+    usuario = models.Usuario(id=999999, nome="Usuário Teste", email="teste@teste.com")
+    definir_usuario(usuario)
+    yield usuario
+    definir_usuario(None)
+
+
 @pytest.fixture
-def insert_paciente(db_session):
+def insert_paciente(db_session, usuario_logado):
     """Seed de um paciente de teste."""
     def _inserir(nome="João Silva", telefone="11999998888", cpf="123.456.789-00"):
-        paciente = models.Paciente(nome=nome, telefone=telefone, cpf=cpf)
+        paciente = models.Paciente(
+            nome=nome, telefone=telefone, cpf=cpf, usuario_id=usuario_logado.id
+        )
         db_session.add(paciente)
         db_session.commit()
         db_session.refresh(paciente)
