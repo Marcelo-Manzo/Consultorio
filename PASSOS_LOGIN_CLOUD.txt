@@ -146,7 +146,7 @@ FASE 2: CLOUD (Supabase - gratis)
     Dica: o schema nao precisa incluir registros - so a estrutura.
 
 
-[ ] Passo 9 - Exportar dados do SQL Server para o Supabase
+[x] Passo 9 - Exportar dados do SQL Server para o Supabase
     ------------------------------------------------
     Criar um script temporario exportar_dados.py na raiz que:
     1. abre a conexao com o SQL Server local (.env atual)
