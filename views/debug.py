@@ -4,9 +4,9 @@ import sys
 from datetime import datetime
 
 import customtkinter as ctk
-from sqlalchemy import text
 
-from database.connection import DATABASE_URL, get_db
+from database import debug as db_debug
+from database.connection import DATABASE_URL
 
 
 def mostrar(parent):
@@ -37,9 +37,7 @@ def mostrar(parent):
         parent.update_idletasks()
 
         try:
-            with get_db() as db:
-                result = db.execute(text("SELECT 1"))
-                result.fetchone()
+            db_debug.testar_conexao()
             lbl_status_db.configure(text="Conectado", text_color="#4ade80")
             log("Conexão com o banco de dados OK", "OK")
         except Exception as e:
@@ -50,21 +48,12 @@ def mostrar(parent):
         lbl_status_db.configure(text="Consultando...", text_color="#fbbf24")
         parent.update_idletasks()
 
-        tabelas = {
-            "Pacientes": "SELECT COUNT(*) FROM Pacientes",
-            "Consultas": "SELECT COUNT(*) FROM Consultas",
-            "Orcamentos": "SELECT COUNT(*) FROM Orcamentos",
-            "Tratamentos": "SELECT COUNT(*) FROM Tratamentos",
-        }
-
         try:
-            with get_db() as db:
-                for nome, query in tabelas.items():
-                    result = db.execute(text(query))
-                    count = result.scalar()
-                    card = cards_tabelas[nome]
-                    card["qtd"].configure(text=str(count))
-                    log(f"{nome}: {count} registros", "INFO")
+            contagens = db_debug.contar_registros()
+            for nome, count in contagens.items():
+                card = cards_tabelas[nome]
+                card["qtd"].configure(text=str(count))
+                log(f"{nome}: {count} registros", "INFO")
 
             lbl_status_db.configure(text="Consulta concluída", text_color="#4ade80")
         except Exception as e:
