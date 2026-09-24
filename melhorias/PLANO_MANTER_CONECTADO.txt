@@ -1,0 +1,269 @@
+==================================================================
+PLANO DE IMPLEMENTACAO - "MANTER CONECTADO" + LOGOUT
+Consultorio
+==================================================================
+
+Objetivo: adicionar um botao "Manter conectado" na tela de login
+(guarda a sessao no Windows Credential Manager via lib `keyring`)
+e um botao "Sair" no app para trocar de usuario.
+
+Decisoes ja tomadas:
+- Sessao guardada no Windows Credential Manager (keyring),
+  NAO em arquivo simples.
+- Adicionar botao "Sair" no app (hoje nao existe).
+- Login com Google fica para UMA PROXIMA etapa (cria conta
+  automatica pra qualquer Gmail).
+
+Um passo por vez. Quando terminar um passo, marque com [x].
+
+==================================================================
+PASSO 1 - Adicionar a dependencia keyring
+==================================================================
+[ ] Passo 1 - Adicionar a dependencia keyring
+    ------------------------------------------------
+    1. Abrir requirements.txt
+    2. Adicionar na parte principal (antes do bloco Dev):
+           keyring==25.5.0
+       (versao pode ser a ultima disponivel; se o pip reclamar,
+        use so: pip install keyring)
+    3. Instalar:
+           .venv\Scripts\pip install keyring
+    4. Conferir se o backend do Windows funciona:
+           .venv\Scripts\python -c "import keyring; print(keyring.get_keyring())"
+       Esperado: algo tipo "keyring.backends.Windows" (usa o
+       Credential Manager do Windows).
+       OBS: se pedir pywin32, instale:
+           .venv\Scripts\pip install pywin32
+       e adicione "pywin32==<versao>" no requirements.txt.
+
+
+==================================================================
+PASSO 2 - Criar o módulo de sessão
+==================================================================
+[ ] Passo 2 - Criar database/sessao.py
+    ------------------------------------------------
+    Criar o arquivo database/sessao.py com 3 funções:
+
+        import keyring
+
+        SERVICO = "consultorio"
+
+        def salvar_sessao(usuario_id):
+            keyring.set_password(SERVICO, "usuario_id", str(usuario_id))
+
+        def carregar_sessao():
+            try:
+                valor = keyring.get_password(SERVICO, "usuario_id")
+            except Exception:
+                return None          # backend indisponivel -> nao quebra
+            return int(valor) if valor else None
+
+        def limpar_sessao():
+            try:
+                keyring.delete_password(SERVICO, "usuario_id")
+            except Exception:
+                pass                  # ja limpo -> nao faz nada
+
+    Dicas:
+    - carregar_sessao() retorna int (id) ou None.
+    - NUNCA deixe uma excecao do keyring derrubar o app.
+    - Nao guarda senha/token, so o usuario_id.
+
+
+==================================================================
+PASSO 3 - Checkbox na tela de login
+==================================================================
+[ ] Passo 3 - Alterar views/login.py
+    ------------------------------------------------
+    1. Importar as funcoes de sessao:
+           from database.sessao import limpar_sessao, salvar_sessao
+
+    2. Depois do campo de senha (após senha_entry.pack) e antes do
+       resultado_label, criar um frame horizontal com o checkbox:
+
+           frame_opcoes = ctk.CTkFrame(frame_login, fg_color="transparent")
+           frame_opcoes.pack(fill="x", padx=30, pady=(5, 0))
+
+           chk_manter = ctk.CTkCheckBox(
+               frame_opcoes,
+               text="Manter conectado",
+               font=("Segoe UI", 12),
+               fg_color="#1f6aa5",
+               hover_color="#144870",
+           )
+           chk_manter.pack(side="left")
+           chk_manter.select()   # vem MARCADO por padrao
+
+    3. Dentro de tentar_login(), logo apos o sucesso
+       (resultado_label "✓ Entrando..."), ANTES de chamar on_success:
+
+           if chk_manter.get():
+               salvar_sessao(usuario.id)
+           else:
+               limpar_sessao()
+
+    Importante: a ordem importa — salvar/limpar a sessao ANTES de
+    abrir o app, porque ao abrir o App a tela de login sera destruida.
+
+
+==================================================================
+PASSO 4 - Restaurar sessao + botao Sair no app
+==================================================================
+[ ] Passo 4 - Alterar app.py
+    ------------------------------------------------
+    Esta e a etapa mais delicada. Tem 2 partes.
+
+    4a) Restaurar a sessao no inicio
+        - Importar:
+              from database.sessao import carregar_sessao, limpar_sessao
+              from database.usuarios import get_user_by_id
+              from database.contexto import definir_usuario
+        - Hoje o final do arquivo e:
+
+              def abrir_app(usuario):
+                  definir_usuario(usuario)
+                  janela_login.destroy()
+                  app = App()
+                  app.mainloop()
+
+              if __name__ == "__main__":
+                  janela_login = mostrar_login(on_success=abrir_app)
+                  janela_login.mainloop()
+
+        - Trocar por um loop. Exemplo:
+
+              janela_login = None   # global: pode nao existir
+
+              def abrir_app(usuario):
+                  definir_usuario(usuario)
+                  if janela_login is not None:
+                      janela_login.destroy()
+                  app = App()
+                  app.mainloop()
+                  # se o App voltou aqui com a flag de logout:
+                  if getattr(app, "voltou_para_login", False):
+                      limpar_sessao()
+                      iniciar()   # volta pro topo -> mostra login
+
+              def iniciar():
+                  global janela_login
+                  # 1) tenta restaurar sessao salva no Credential Manager
+                  uid = carregar_sessao()
+                  if uid is not None:
+                      usuario = get_user_by_id(uid)
+                      if usuario:
+                          definir_usuario(usuario)
+                          app = App()
+                          app.mainloop()
+                          if getattr(app, "voltou_para_login", False):
+                              limpar_sessao()
+                              iniciar()
+                          return
+                      else:
+                          limpar_sessao()   # usuario nao existe mais
+
+                  # 2) sem sessao valida -> tela de login
+                  janela_login = mostrar_login(on_success=abrir_app)
+                  janela_login.mainloop()
+
+              if __name__ == "__main__":
+                  iniciar()
+
+        CUIDADO: nao chame janela_login.destroy() sem verificar se
+        ele existe (quando vier da sessao restaurada, ele nao existe).
+
+
+    4b) Botao "Sair" na sidebar
+        - Ja no metodo __init__ da classe App, depois do botao
+          "Debug", adicionar:
+
+              ctk.CTkButton(
+                  self.sidebar,
+                  text="Sair",
+                  font=fonte_clean,
+                  command=self.sair,
+                  width=180,
+                  fg_color="#361a1a",
+                  hover_color="#542323",
+                  text_color="#f87171",
+              ).pack(pady=10)
+
+        - Criar o metodo na classe App:
+
+              def sair(self):
+                  limpar_sessao()
+                  definir_usuario(None)
+                  self.voltou_para_login = True
+                  self.destroy()
+
+        - O loop iniciar() (do passo 4a) detecta a flag e reabre o
+          login, zerado para outro usuario entrar.
+
+
+==================================================================
+PASSO 5 - Testes
+==================================================================
+[ ] Passo 5 - Criar tests/test_sessao.py
+    ------------------------------------------------
+    Testar a sessao com o keyring trocado por um backend fake em
+    memoria (nao usa o Windows de verdade nos testes).
+
+    Exemplo (usando unittest.mock):
+
+        from unittest.mock import patch
+        from database import sessao
+
+        def test_salvar_e_carregar():
+            with patch.object(sessao.keyring, "get_password", return_value="7"):
+                assert sessao.carregar_sessao() == 7
+
+        def test_carregar_sem_sessao():
+            with patch.object(sessao.keyring, "get_password", return_value=None):
+                assert sessao.carregar_sessao() is None
+
+        def test_carregar_erro_backend_retorna_none():
+            with patch.object(sessao.keyring, "get_password", side_effect=Exception("x")):
+                assert sessao.carregar_sessao() is None
+
+        def test_limpar_nao_deu_erro():
+            with patch.object(sessao.keyring, "delete_password", side_effect=Exception("x")):
+                sessao.limpar_sessao()   # nao deve levantar excecao
+
+    Depois rodar os testes:
+        .venv\Scripts\python -m pytest -q
+        .venv\Scripts\python -m ruff check .
+
+
+==================================================================
+ORDEM RESUMIDA
+==================================================================
+    Passo 1 (requirements) -> Passo 2 (sessao.py) ->
+    Passo 3 (login.py)     -> Passo 4 (app.py)     ->
+    Passo 5 (testes)
+
+==================================================================
+TESTE MANUAL (fazer no fim, com o app aberto)
+==================================================================
+    1. Logar com "Manter conectado" MARCADO.
+    2. Fechar o app (X) e reabrir -> deve PULAR o login.
+    3. Clicar em "Sair" -> deve voltar pra tela de login.
+    4. Logar com "Manter conectado" DESMARCADO como OUTRO usuario.
+    5. Fechar e reabrir -> deve PEDIR login de novo (trocou de conta).
+
+==================================================================
+RISCO / SE DER PROBLEMA
+==================================================================
+    Risco: recriar a janela principal (raiz CTk) varias vezes
+    (app -> logout -> login -> app...) pode travar o Tkinter.
+
+    Se isso acontecer, alternativa: manter UMA UNICA janela raiz e
+    apenas trocar as telas dentro dela (refatoracao um pouco maior).
+    Testar o fluxo do PASSO 4a cedo, antes de investir nos demais.
+
+==================================================================
+PROXIMA ETAPA (fora deste plano)
+==================================================================
+    Login com Google (google-auth + google-auth-oauthlib), criando
+    conta automatica pra qualquer Gmail. Requer setup unico de um
+    OAuth Client ID no Google Cloud Console.
+==================================================================
