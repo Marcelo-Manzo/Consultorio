@@ -1,6 +1,8 @@
 from datetime import datetime
 
 from database import models
+from database.contexto import definir_usuario, usuario_atual
+from database.models import Usuario
 from database.orcamento import (
     atualizar_status_orcamento,
     buscar_orcamento_por_id_consulta,
@@ -15,8 +17,12 @@ from database.orcamento import (
 from .conftest import patch_db
 
 
+def _uid():
+    return usuario_atual().id
+
+
 def _criar_paciente(db_session, nome="João", cpf="123.456.789-00"):
-    p = models.Paciente(nome=nome, telefone="11999998888", cpf=cpf)
+    p = models.Paciente(nome=nome, telefone="11999998888", cpf=cpf, usuario_id=_uid())
     db_session.add(p)
     db_session.commit()
     db_session.refresh(p)
@@ -32,6 +38,7 @@ def _criar_consulta(db_session, paciente_id, data=None):
         data=data,
         valor=150.0,
         metodo_pagamento="Pix",
+        usuario_id=_uid(),
     )
     db_session.add(c)
     db_session.commit()
@@ -49,6 +56,7 @@ def _criar_orcamento(db_session, consulta_id, paciente_id, valor=150.0, status=0
         forma_pagamento="Pix",
         status=status,
         data_criacao=data_criacao,
+        usuario_id=_uid(),
     )
     db_session.add(o)
     db_session.commit()
@@ -250,5 +258,107 @@ def test_deletar_orcamento(db_session):
     with patch_db("orcamento", db_session):
         resultado = listar_orcamentos_por_mes(8, 2026)
     assert resultado == []
+
+
+# ==================== Isolamento Multi-Usuário ====================
+
+
+def _criar_usuario(db_session, nome="Outro"):
+    u = Usuario(nome=nome, email=f"{nome.lower()}@teste.com")
+    db_session.add(u)
+    db_session.commit()
+    db_session.refresh(u)
+    return u
+
+
+def test_listar_orcamentos_so_do_usuario_logado(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id)
+    _criar_orcamento(db_session, c.id, p.id, data_criacao=datetime(2026, 8, 15))
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("orcamento", db_session):
+            assert listar_orcamentos_por_mes(8, 2026) == []
+        with patch_db("orcamento", db_session):
+            assert lista_orcamentos_por_status_data(None, None, None) == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("orcamento", db_session):
+        assert len(listar_orcamentos_por_mes(8, 2026)) == 1
+
+
+def test_ganho_ignora_orcamentos_de_outro_usuario(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id)
+    _criar_orcamento(db_session, c.id, p.id, valor=100.0, status=1, data_criacao=datetime(2026, 8, 10))
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("orcamento", db_session):
+            assert obter_ganho_total_mes(8, 2026) == 0
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("orcamento", db_session):
+        assert obter_ganho_total_mes(8, 2026) == 100.0
+
+
+def test_atualizar_status_orcamento_de_outro_usuario_nao_altera(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id)
+    o = _criar_orcamento(db_session, c.id, p.id, status=0)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("orcamento", db_session):
+            atualizar_status_orcamento(o.id, 1)
+        with patch_db("orcamento", db_session):
+            update_orcamento_por_consulta(c.id, p.id, 999.0, "Nada", status=0)
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("orcamento", db_session):
+        resultado = listar_orcamentos_por_mes(8, 2026)
+    assert resultado[0]["status"] == 0
+    assert resultado[0]["valor"] == 150.0
+
+
+def test_buscar_orcamento_de_outro_usuario_retorna_nada(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id)
+    _criar_orcamento(db_session, c.id, p.id)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("orcamento", db_session):
+            assert buscar_orcamento_por_id_consulta(c.id) == []
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("orcamento", db_session):
+        assert len(buscar_orcamento_por_id_consulta(c.id)) == 1
+
+
+def test_deletar_orcamento_de_outro_usuario_nao_exclui(db_session, usuario_logado):
+    p = _criar_paciente(db_session)
+    c = _criar_consulta(db_session, p.id)
+    o = _criar_orcamento(db_session, c.id, p.id)
+    outro = _criar_usuario(db_session)
+
+    definir_usuario(outro)
+    try:
+        with patch_db("orcamento", db_session):
+            deletar_orcamento(o.id)
+    finally:
+        definir_usuario(usuario_logado)
+
+    with patch_db("orcamento", db_session):
+        assert len(listar_orcamentos_por_mes(8, 2026)) == 1
 
 

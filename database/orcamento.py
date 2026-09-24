@@ -3,7 +3,12 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 
 from .connection import get_db
+from .contexto import usuario_id_obrigatorio
 from .models import Consulta, Orcamento, Paciente
+
+
+def _filtro_usuario():
+    return Orcamento.usuario_id == usuario_id_obrigatorio()
 
 
 def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, status=0):
@@ -15,6 +20,7 @@ def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, statu
             forma_pagamento=metodo,
             status=status,
             data_criacao=data_criacao,
+            usuario_id=usuario_id_obrigatorio(),
         )
         db.add(orcamento)
         db.commit()
@@ -23,7 +29,9 @@ def criar_orcamento(consulta_id, paciente_id, valor, metodo, data_criacao, statu
 def update_orcamento_por_consulta(consulta_id, paciente_id, valor, forma_pagamento, status=0):
     with get_db() as db:
         orcamento = (
-            db.query(Orcamento).filter(Orcamento.consulta_id == consulta_id).first()
+            db.query(Orcamento)
+            .filter(Orcamento.consulta_id == consulta_id, _filtro_usuario())
+            .first()
         )
         if orcamento:
             orcamento.paciente_id = paciente_id
@@ -51,7 +59,7 @@ def listar_orcamentos_por_mes(mes, ano):
         resultados = (
             db.query(Orcamento, Paciente)
             .join(Paciente, Orcamento.paciente_id == Paciente.id)
-            .filter(Orcamento.data_criacao >= inicio, Orcamento.data_criacao < fim)
+            .filter(Orcamento.data_criacao >= inicio, Orcamento.data_criacao < fim, _filtro_usuario())
             .order_by(Orcamento.data_criacao.desc())
             .all()
         )
@@ -72,7 +80,9 @@ def listar_orcamentos_por_mes(mes, ano):
 
 def atualizar_status_orcamento(orcamento_id, novo_status):
     with get_db() as db:
-        orcamento = db.query(Orcamento).filter(Orcamento.id == orcamento_id).first()
+        orcamento = (
+            db.query(Orcamento).filter(Orcamento.id == orcamento_id, _filtro_usuario()).first()
+        )
         if orcamento:
             orcamento.status = novo_status
             db.commit()
@@ -87,6 +97,7 @@ def obter_ganho_total_mes(mes, ano):
                 Orcamento.status == 1,
                 Orcamento.data_criacao >= inicio,
                 Orcamento.data_criacao < fim,
+                _filtro_usuario(),
             )
             .scalar()
         )
@@ -98,6 +109,8 @@ def lista_orcamentos_por_status_data(status, data_inicio, data_fim):
         query = db.query(Orcamento, Paciente).join(
             Paciente, Orcamento.paciente_id == Paciente.id
         )
+
+        query = query.filter(_filtro_usuario())
 
         if status is not None and str(status).isdigit():
             query = query.filter(Orcamento.status == int(status))
@@ -134,7 +147,7 @@ def buscar_orcamento_por_id_consulta(id_consulta):
         resultados = (
             db.query(Orcamento)
             .join(Consulta, Orcamento.consulta_id == Consulta.id)
-            .filter(Consulta.id == id_consulta)
+            .filter(Consulta.id == id_consulta, _filtro_usuario())
             .all()
         )
         return [{"id": o.id} for o in resultados]
@@ -142,7 +155,9 @@ def buscar_orcamento_por_id_consulta(id_consulta):
 
 def deletar_orcamento(orcamento_id):
     with get_db() as db:
-        orcamento = db.query(Orcamento).filter(Orcamento.id == orcamento_id).first()
+        orcamento = (
+            db.query(Orcamento).filter(Orcamento.id == orcamento_id, _filtro_usuario()).first()
+        )
         if orcamento:
             db.delete(orcamento)
             db.commit()

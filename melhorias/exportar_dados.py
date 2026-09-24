@@ -44,11 +44,19 @@ def _copiar_tabela(modelo, nome_tabela):
 
     qtd_inseridos = 0
     with Sessao_destino() as dst:
+        # Dono padrão para dados legados (sem usuario_id na origem): o 1º usuário
+        id_dono = dst.scalar(select(models.Usuario.id).order_by(models.Usuario.id).limit(1))
         for reg in registros:
             novo = modelo(id=reg.id)
             for col in modelo.__table__.columns.keys():
-                if col != "id":
+                if col == "id":
+                    continue
+                if hasattr(reg, col):
+                    # Coluna existe na origem → copia o valor real
                     setattr(novo, col, getattr(reg, col))
+                elif col == "usuario_id" and id_dono is not None:
+                    # Origem sem multi-usuário → atribui ao 1º usuário do destino
+                    novo.usuario_id = id_dono
             dst.merge(novo)
             qtd_inseridos += 1
         dst.commit()
