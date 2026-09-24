@@ -171,7 +171,7 @@ FASE 2: CLOUD (Supabase - gratis)
     commitar a senha do banco.
 
 
-[ ] Passo 11 - Trocar pyodbc por psycopg2
+[X] Passo 11 - Trocar pyodbc por psycopg2
     ------------------------------------------------
     - requirements.txt: remover a linha "pyodbc==..."
       e adicionar "psycopg2-binary==..." (versao atual)
