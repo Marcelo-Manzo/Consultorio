@@ -183,7 +183,7 @@ FASE 2: CLOUD (Supabase - gratis)
       para sintaxe do Postgres (NOW()).
 
 
-[ ] Passo 12 - Testar tudo
+[x] Passo 12 - Testar tudo
     ------------------------------------------------
     - Rodar os testes:   .venv\Scripts\pytest tests/  -> 66 passando
     - Rodar o lint:      .venv\Scripts\ruff check .
