@@ -3,6 +3,7 @@ import customtkinter as ctk
 from database import get_user_by_email, validar_senha
 from views.helpers import criar_campo_senha
 from views.usuarios import abrir_criar_usuario
+from database.sessao import salvar_sessao, limpar_sessao
 
 
 def mostrar(on_success=None):
@@ -56,6 +57,20 @@ def mostrar(on_success=None):
 
     senha_entry = criar_campo_senha(frame_login)
     senha_entry.pack(fill="x", padx=30, pady=5)
+    
+    #manter conectado
+    frame_opcoes = ctk.CTkFrame(frame_login, fg_color="transparent")
+    frame_opcoes.pack(fill="x", padx=30, pady=(5, 0))
+
+    chk_manter = ctk.CTkCheckBox(
+        frame_opcoes,
+        text="Manter conectado",
+        font=("Segoe UI", 12),
+        fg_color="#1f6aa5",
+        hover_color="#144870",
+    )
+    chk_manter.pack(side="left")
+    chk_manter.select()   # vem MARCADO por padrao
 
     resultado_label = ctk.CTkLabel(frame_login, text="", font=("Segoe UI", 12))
     resultado_label.pack(pady=(10, 5))
@@ -84,6 +99,10 @@ def mostrar(on_success=None):
 
         resultado_label.configure(text="✓ Entrando...", text_color="#4ade80")
         if on_success:
+            if chk_manter.get():
+               salvar_sessao(usuario.id)
+            else:
+               limpar_sessao()
             on_success(usuario)
 
     ctk.CTkButton(
