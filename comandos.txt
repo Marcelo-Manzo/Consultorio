@@ -4,10 +4,10 @@ pip install reportlab
 pip install validate-docbr
 pip install ruff
 pip install bcrypt
+pip install keyring
 iniciar: python app.py
 
 commit
-
 
 ________________________________________________
 
