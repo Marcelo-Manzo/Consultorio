@@ -1,9 +1,9 @@
 import customtkinter as ctk
 
 from database import get_user_by_email, validar_senha
+from database.sessao import limpar_sessao, salvar_sessao
 from views.helpers import criar_campo_senha
 from views.usuarios import abrir_criar_usuario
-from database.sessao import salvar_sessao, limpar_sessao
 
 
 def mostrar(on_success=None):

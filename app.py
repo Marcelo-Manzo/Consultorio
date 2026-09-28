@@ -5,10 +5,10 @@ import customtkinter as ctk
 
 from database.consultas import buscar_consulta_Atual
 from database.contexto import definir_usuario
+from database.sessao import carregar_sessao, limpar_sessao
+from database.usuarios import get_user_by_id
 from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes, usuarios
 from views.login import mostrar as mostrar_login
-
-# IMPORTANTE: Importa a função do pop-up e a busca do banco de dados
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
 
 ctk.set_appearance_mode("dark")
@@ -79,6 +79,17 @@ class App(ctk.CTk):
             text="Debug",
             font=fonte_clean,
             command=self.mostrar_debug,
+            width=180,
+            fg_color="#361a1a",
+            hover_color="#542323",
+            text_color="#f87171",
+        ).pack(pady=10)
+
+        ctk.CTkButton(
+            self.sidebar,
+            text="Sair",
+            font=fonte_clean,
+            command=self.sair,
             width=180,
             fg_color="#361a1a",
             hover_color="#542323",
@@ -161,14 +172,44 @@ class App(ctk.CTk):
         self.limpar_frame()
         usuarios.mostrar(self.main_frame)
 
+    def sair(self):
+        limpar_sessao()
+        definir_usuario(None)
+        self.voltou_para_login = True
+        self.destroy()
+
+janela_login = None   # global: pode nao existir
+
 
 def abrir_app(usuario):
     definir_usuario(usuario)
-    janela_login.destroy()
+    if janela_login is not None:
+        janela_login.destroy()
     app = App()
     app.mainloop()
+    # se o App voltou aqui com a flag de logout:
+    if getattr(app, "voltou_para_login", False):
+        limpar_sessao()
+        iniciar()   # volta pro topo -> mostra login
 
-
-if __name__ == "__main__":
+def iniciar():
+    global janela_login
+    # 1) tenta restaurar sessao salva no Credential Manager
+    uid = carregar_sessao()
+    if uid is not None:
+        usuario = get_user_by_id(uid)
+        if usuario:
+            definir_usuario(usuario)
+            app = App()
+            app.mainloop()
+            if getattr(app, "voltou_para_login", False):
+                limpar_sessao()
+                iniciar()
+            return
+        else:
+            limpar_sessao()   # usuario nao existe mais
     janela_login = mostrar_login(on_success=abrir_app)
     janela_login.mainloop()
+
+if __name__ == "__main__":
+    iniciar()
