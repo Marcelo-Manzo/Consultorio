@@ -23,7 +23,7 @@ def test_criar_paciente(db_session):
     with patch_db("pacientes", db_session):
         pacientes = listar_pacientes()
     assert len(pacientes) == 1
-    assert pacientes[0].nome == "João Silva"
+    assert pacientes[0].nome == "joão silva"  # banco normaliza p/ minúsculo (busca case-insensitive)
     assert pacientes[0].cpf == "123.456.789-00"
 
 
