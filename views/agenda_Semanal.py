@@ -389,7 +389,7 @@ def mostrar(parent):
                 p = pacientes[0]
                 paciente_selecionado["id"] = p.id
                 paciente_selecionado["nome"] = p.nome
-                resultado_label.configure(text=f"✓ {p.nome} || CPF: {p.cpf}", text_color="#4ade80")
+                resultado_label.configure(text=f"✓ {p.nome.title()}   CPF: {p.cpf}", text_color="#4ade80")
             else:
                 resultado_label.configure(
                     text=f"⚠ {len(pacientes)} resultados. Seja mais específico.", text_color="#fbbf24"

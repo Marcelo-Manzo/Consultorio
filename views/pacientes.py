@@ -267,7 +267,7 @@ def mostrar(parent):
 
         def salvar():
             if validar():
-                nome = nome_entry.get().strip()
+                nome = nome_entry.get().strip().lower()
                 cpf_str = cpf_entry.get().strip()
                 telefone = telefone_entry.get().strip()
 
@@ -372,7 +372,7 @@ def mostrar(parent):
             frame_info.pack(side="left", fill="both", expand=True, padx=12, pady=10)
 
             lbl_nome = ctk.CTkLabel(
-                frame_info, text=f"👤 {p.nome}", font=("Segoe UI", 13, "bold"), text_color="#e5e7eb", cursor="hand2"
+                frame_info, text=f"👤 {p.nome.title()}", font=("Segoe UI", 13, "bold"), text_color="#e5e7eb", cursor="hand2"
             )
             lbl_nome.pack(anchor="w")
 

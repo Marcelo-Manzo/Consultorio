@@ -25,9 +25,12 @@ class App(ctk.CTk):
         self.title("Consultório")
         self.geometry("900x600")
 
+        self.logado = False          # sessão ativa? controla sidebar e relógio
+        self._relogio_iniciado = False
+
         # Frame lateral com botões de navegação
+        # (empacotado só após o login — ver entrar())
         self.sidebar = ctk.CTkFrame(self, width=200, corner_radius=0, fg_color="#111214")
-        self.sidebar.pack(side="left", fill="y", padx=0, pady=0)
 
         self.titulo = ctk.CTkLabel(self.sidebar, text="Menu", font=("Arial", 20, "bold"))
         self.titulo.pack(pady=20)
@@ -101,11 +104,7 @@ class App(ctk.CTk):
         self.main_frame.pack(side="right", fill="both", expand=True, padx=10, pady=10)
 
         self.disparar_popup = mostrar_popup_comparecimento(self)
-        # Inicia mostrando a tela de agenda
-        self.mostrar_agenda_semanal()
-
-        # 🚀 DA A PARTIDA NO RELÓGIO: Inicia o loop de verificação de consultas
-        self.verificar_horarios_consultas()
+        # A primeira tela (login ou agenda) é decidida em iniciar()
 
     # ==================== SEGUNDO PLANO (RELÓGIO) ====================
 
@@ -118,13 +117,15 @@ class App(ctk.CTk):
         return datetime(agora.year, agora.month, agora.day, agora.hour, minuto_bloco, 0)
 
     def verificar_horarios_consultas(self):
-        # Descobre o bloco de 30 min atual (ex: 2026-07-01 15:30:00)
-        bloco_atual = self.obter_bloco_horario_atual()
+        # Sem sessão ativa não consulta o banco, só mantém o loop vivo
+        if self.logado:
+            # Descobre o bloco de 30 min atual (ex: 2026-07-01 15:30:00)
+            bloco_atual = self.obter_bloco_horario_atual()
 
-        # Consulta ao banco em THREAD separada: a busca na nuvem demora ~1s e
-        # não pode congelar a interface. Quando terminar, agenda o pop-up
-        # (que VOLTA para a thread principal do Tk).
-        executor_banco.submit(self._checar_consulta_no_bloco, bloco_atual)
+            # Consulta ao banco em THREAD separada: a busca na nuvem demora ~1s e
+            # não pode congelar a interface. Quando terminar, agenda o pop-up
+            # (que VOLTA para a thread principal do Tk).
+            executor_banco.submit(self._checar_consulta_no_bloco, bloco_atual)
 
         # Pode rodar a checagem a cada 5 minutos (300000 ms) em vez de 1 minuto!
         self.after(30000, self.verificar_horarios_consultas)
@@ -135,7 +136,7 @@ class App(ctk.CTk):
         except Exception:
             consulta_no_bloco = None
 
-        if consulta_no_bloco:
+        if consulta_no_bloco and self.logado:
             # after() só pode ser chamado pela thread principal; agendamos aqui.
             self.after(0, lambda: self.disparar_popup(consulta_no_bloco["data"]))
 
@@ -172,44 +173,53 @@ class App(ctk.CTk):
         self.limpar_frame()
         usuarios.mostrar(self.main_frame)
 
+    # ==================== CICLO DE VIDA DA SESSÃO (JANELA ÚNICA) ====================
+
+    def entrar(self, usuario):
+        """Autentica e mostra a tela principal.
+
+        A janela raiz NUNCA é destruída: só troca o conteúdo do main_frame.
+        """
+        definir_usuario(usuario)
+        if not self.logado:
+            self.logado = True
+            self.sidebar.pack(side="left", fill="y", before=self.main_frame, padx=0, pady=0)
+        self.limpar_frame()
+        self.mostrar_agenda_semanal()
+        if not self._relogio_iniciado:
+            self._relogio_iniciado = True
+            self.verificar_horarios_consultas()
+
+    def mostrar_login_tela(self):
+        """Mostra a tela de login dentro do App (antes de autenticar)."""
+        self.limpar_frame()
+        mostrar_login(self.main_frame, on_success=self.entrar)
+
     def sair(self):
+        """Encerra a sessão e volta para o login (janela única, sem destroy da raiz)."""
         limpar_sessao()
         definir_usuario(None)
-        self.voltou_para_login = True
-        self.destroy()
+        self.logado = False
+        self.sidebar.pack_forget()
+        self.mostrar_login_tela()
 
-janela_login = None   # global: pode nao existir
-
-
-def abrir_app(usuario):
-    definir_usuario(usuario)
-    if janela_login is not None:
-        janela_login.destroy()
-    app = App()
-    app.mainloop()
-    # se o App voltou aqui com a flag de logout:
-    if getattr(app, "voltou_para_login", False):
-        limpar_sessao()
-        iniciar()   # volta pro topo -> mostra login
 
 def iniciar():
-    global janela_login
-    # 1) tenta restaurar sessao salva no Credential Manager
+    app = App()
+
+    # 1) tenta restaurar a sessao salva no Credential Manager
     uid = carregar_sessao()
-    if uid is not None:
-        usuario = get_user_by_id(uid)
-        if usuario:
-            definir_usuario(usuario)
-            app = App()
-            app.mainloop()
-            if getattr(app, "voltou_para_login", False):
-                limpar_sessao()
-                iniciar()
-            return
-        else:
-            limpar_sessao()   # usuario nao existe mais
-    janela_login = mostrar_login(on_success=abrir_app)
-    janela_login.mainloop()
+    usuario = get_user_by_id(uid) if uid is not None else None
+    if uid is not None and usuario is None:
+        limpar_sessao()  # usuario nao existe mais -> limpa a sessao
+
+    if usuario:
+        app.entrar(usuario)          # sessao valida -> pula o login
+    else:
+        app.mostrar_login_tela()     # sem sessao -> tela de login
+
+    app.mainloop()
+
 
 if __name__ == "__main__":
     iniciar()
