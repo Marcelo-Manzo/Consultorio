@@ -456,7 +456,7 @@ def mostrar(parent):
             if len(apenas_numeros) > 0 and (termo[0].isdigit() or "." in termo or "-" in termo):
                 encontrados = buscar_paciente_por_cpf(termo)
             else:
-                encontrados = buscar_paciente_por_nome(termo)
+                encontrados = buscar_paciente_por_nome(termo.lower())
         except Exception:
             resultado_label_busca.configure(text="❌ Erro ao buscar no banco", text_color="#f87171")
             return

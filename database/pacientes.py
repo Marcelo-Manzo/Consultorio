@@ -12,7 +12,7 @@ def _filtro_usuario():
 def criar_paciente(nome, telefone, cpf):
     with get_db() as db:
         paciente = Paciente(
-            nome=nome, telefone=telefone, cpf=cpf, usuario_id=usuario_id_obrigatorio()
+            nome=nome.lower(), telefone=telefone, cpf=cpf, usuario_id=usuario_id_obrigatorio()
         )
         db.add(paciente)
         db.commit()
