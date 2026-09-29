@@ -243,6 +243,43 @@ def marcar_pagamento(consulta_id, pago):
             db.commit()
 
 
+def proxima_consulta(data_agora, dias=60):
+    """Retorna a próxima consulta futura ainda não atendida (com nome do paciente).
+
+    Usada no painel da agenda para exibir o tempo restante até o próximo
+    atendimento. Considera status ainda "ativos" (agendado / falta remarcada /
+    notificação disparada).
+
+    :param data_agora: datetime a partir do qual buscar (normalmente datetime.now()).
+    :param dias: janela máxima de busca para frente.
+    :return: dict com nome/tratamento/data ou None se não houver próxima.
+    """
+    fim = data_agora + timedelta(days=dias)
+    with get_db() as db:
+        resultado = (
+            db.query(Consulta, Paciente)
+            .join(Paciente, Consulta.paciente_id == Paciente.id)
+            .filter(
+                Consulta.data >= data_agora,
+                Consulta.data < fim,
+                Consulta.compareceu.in_([0, 3, 4]),
+                _filtro_usuario(),
+            )
+            .order_by(Consulta.data.asc())
+            .first()
+        )
+        if not resultado:
+            return None
+        c, p = resultado
+        return {
+            "consulta_id": c.id,
+            "paciente_id": c.paciente_id,
+            "nome": p.nome,
+            "data": c.data,
+            "tratamento": c.tratamento,
+        }
+
+
 def listar_tratamentos():
     with get_db() as db:
         uid = usuario_id_obrigatorio()
