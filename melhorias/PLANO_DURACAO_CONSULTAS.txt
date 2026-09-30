@@ -21,6 +21,62 @@ ORDEM DE EXECUCAO (passo a passo)
 - Tratamento: adicionar coluna -> duracao = Column(Integer, nullable=True)
   (None = duracao nao definida -> consulta usa 30)
 
+[ 2 ] BANCO DE DADOS - SQL PRODUCAO (rodar manualmente na maquina)
+---------------------------------------------------
+SQL Server local (instancia @MARCELO, ao vivo): executar no SSMS:
+
+    ALTER TABLE Consultas ADD duracao INTEGER NOT NULL DEFAULT 30;
+    ALTER TABLE Tratamentos ADD duracao INTEGER NULL;
+
+Supabase (quando migrar): incluir duracao nos CREATE TABLE de
+Consultas (INTEGER NOT NULL DEFAULT 30) e Tratamentos (INTEGER NULL)
+em melhorias/SQL_CREATE_TABLES.txt  <-- ATUALIZAR ESTE ARQUIVO
+
+ATENCAO SUPABASE (PostgreSQL): as tabelas foram criadas com
+identificadores entre aspas, entao o ALTER precisa delas tambem,
+senao da erro 42P01 ("relation consultas does not exist"):
+
+    ALTER TABLE "Consultas"   ADD COLUMN duracao INTEGER NOT NULL DEFAULT 30;
+    ALTER TABLE "Tratamentos" ADD COLUMN duracao INTEGER NULL;
+
+OBS: o app NAO cria/altera schema sozinho; sem o ALTER as queries
+quebram com coluna inexistente.
+
+[ 3 ] CAMADA DE DADOS - database/consultas.py
+---------------------------------------------------
+- criar_consulta(paciente_id, treatment, data_e_horario, valor,
+  metodo_pagamento, compareceu=0, duracao=30)  -> salva duracao
+- update_consulta(consulta_id, treatment, data_e_horario, valor,
+  metodo_pagamento, duracao)                  -> atualiza duracao
+- Expor duracao nos dicts retornados por:
+    buscar_consulta_por_id_dict
+    listar_consultas_com_paciente_por_data
+    listar_consultas_com_paciente_por_periodo
+- (opcional, p/ testes de conflito) helper interno de sobreposicao
+  ou calc feito na view com por_data.
+
+IMPORTANTE: chamadas antigas criar_consulta(...) sem duracao (telas
+de consultas/dia, faltantes, testes) continuam funcionando via default.
+No update, duracao=None significa "manter a duracao atual" (para nao
+sobrescrever com default quando a view nao mexeu no campo).
+
+[ 4 ] CAMADA DE DADOS - database/tratamentos.py (NOVO)
+---------------------------------------------------
+- create_tratamento(nome, valor, duracao=None)
+- update_tratamento(id, nome, valor, duracao)
+- deletar_tratamento(id)
+- Sempre filtrados por usuario logado (usuario_id_obrigatorio)
+- Registrar exports em database/__init__.py
+
+[ 5 ] TELA DE TRATAMENTOS - views/tratamentos.py (NOVO) + app.py
+---------------------------------------------------
+- Lista de tratamentos (nome, valor, duracao) do usuario logado
+- Botoes: adicionar novo, editar, excluir
+- Form: Nome, Valor (R$), Duracao (min, opcional/vazio = nao definida)
+- Registar no app.py:
+    - import em "from views import ..."
+    - item novo no menu lateral: "Tratamentos" -> self.mostrar_tratamentos
+    - metodo mostrar_tratamentos (limpa frame + chama view)
 
 [ 6 ] AGENDA SEMANAL - views/agenda_Semanal.py
 ---------------------------------------------------

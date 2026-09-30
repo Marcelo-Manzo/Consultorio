@@ -8,6 +8,7 @@ from database.consultas import (
     criar_consulta,
     deletar_consulta,
     listar_consultas_com_paciente_por_data,
+    listar_consultas_com_paciente_por_periodo,
     listar_consultas_data,
     listar_consultas_paciente,
     listar_faltas_data,
@@ -43,7 +44,7 @@ def _criar_tratamento(db_session, nome="Limpeza", valor=150.0):
     return t
 
 
-def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", valor=150.0):
+def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", valor=150.0, duracao=30):
     if data is None:
         data = datetime(2026, 8, 31, 10, 0)
     c = models.Consulta(
@@ -54,6 +55,7 @@ def _criar_consulta(db_session, paciente_id, data=None, tratamento="Limpeza", va
         metodo_pagamento="Pix",
         compareceu=0,
         usuario_id=_uid(),
+        duracao=duracao,
     )
     db_session.add(c)
     db_session.commit()
@@ -209,6 +211,88 @@ def test_update_consulta(db_session):
     assert resultado.valor == 300.0
     assert resultado.metodo_pagamento == "Crédito"
     assert resultado.data == nova_data
+
+
+# ==================== duracao ====================
+
+
+def test_criar_consulta_usa_duracao_default_30(db_session):
+    p = _criar_paciente(db_session)
+    data = datetime(2026, 8, 31, 10, 0)
+
+    with patch_db("consultas", db_session):
+        consulta_id = criar_consulta(p.id, "Limpeza", data, 150.0, "Pix")
+
+    with patch_db("consultas", db_session):
+        consulta = buscar_consulta_por_id(consulta_id)
+    assert consulta.duracao == 30
+
+
+def test_criar_consulta_com_duracao_informada(db_session):
+    p = _criar_paciente(db_session)
+    data = datetime(2026, 8, 31, 10, 0)
+
+    with patch_db("consultas", db_session):
+        consulta_id = criar_consulta(p.id, "Ortodontia", data, 500.0, "Pix", duracao=90)
+
+    with patch_db("consultas", db_session):
+        consulta = buscar_consulta_por_id(consulta_id)
+    assert consulta.duracao == 90
+
+
+def test_update_consulta_altera_duracao(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id, duracao=30)
+    nova_data = datetime(2026, 9, 15, 14, 30)
+
+    with patch_db("consultas", db_session):
+        update_consulta(consulta.id, "Clareamento", nova_data, 300.0, "Crédito", duracao=60)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.duracao == 60
+
+
+def test_update_consulta_sem_duracao_mantem_valor_atual(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id, duracao=60)
+    nova_data = datetime(2026, 9, 15, 14, 30)
+
+    with patch_db("consultas", db_session):
+        update_consulta(consulta.id, "Clareamento", nova_data, 300.0, "Crédito")
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id(consulta.id)
+    assert resultado.duracao == 60
+
+
+def test_buscar_consulta_por_id_dict_expoe_duracao(db_session):
+    p = _criar_paciente(db_session)
+    consulta = _criar_consulta(db_session, p.id, duracao=45)
+
+    with patch_db("consultas", db_session):
+        resultado = buscar_consulta_por_id_dict(consulta.id)
+    assert resultado["duracao"] == 45
+
+
+def test_listar_por_data_expoe_duracao(db_session):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0), duracao=90)
+
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_com_paciente_por_data("2026-08-31")
+    assert resultado[0]["duracao"] == 90
+
+
+def test_listar_por_periodo_expoe_duracao(db_session):
+    p = _criar_paciente(db_session)
+    _criar_consulta(db_session, p.id, data=datetime(2026, 8, 31, 10, 0), duracao=60)
+
+    with patch_db("consultas", db_session):
+        resultado = listar_consultas_com_paciente_por_periodo(
+            datetime(2026, 8, 31, 0, 0), datetime(2026, 9, 7, 0, 0)
+        )
+    assert resultado[0]["duracao"] == 60
 
 
 # ==================== listar_consultas_data ====================
