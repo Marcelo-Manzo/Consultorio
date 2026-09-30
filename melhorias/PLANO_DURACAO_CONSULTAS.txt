@@ -1,0 +1,145 @@
+==================================================================
+PLANO: DURACAO DE CONSULTAS + HORARIOS EM BLOCOS
+==================================================================
+Objetivo: cada consulta passa a ter uma duracao (minutos) e o card
+da agenda semanal cobre o intervalo [inicio, inicio+duracao). Cada
+tratamento pode ter uma duracao definida ou nao (se nao tiver, a
+consulta usa 30 min). Nao pode haver consulta pegando o horario de
+outra (bloqueio de conflito). Duracoes definidas numa tela de
+tratamentos e/ou direto no popup de agendamento.
+
+Escopo: apenas a Agenda Semanal. Telas de consultas/dia e faltantes
+continuam como estao (usam default de 30 min).
+
+==================================================================
+ORDEM DE EXECUCAO (passo a passo)
+==================================================================
+
+[ 1 ] BANCO DE DADOS - Modelo (database/models.py)
+---------------------------------------------------
+- Consulta: adicionar coluna  -> duracao = Column(Integer, default=30)
+- Tratamento: adicionar coluna -> duracao = Column(Integer, nullable=True)
+  (None = duracao nao definida -> consulta usa 30)
+
+[ 2 ] BANCO DE DADOS - SQL PRODUCAO (rodar manualmente na maquina)
+---------------------------------------------------
+SQL Server local (instancia @MARCELO, ao vivo): executar no SSMS:
+
+    ALTER TABLE Consultas ADD duracao INTEGER NOT NULL DEFAULT 30;
+    ALTER TABLE Tratamentos ADD duracao INTEGER NULL;
+
+Supabase (quando migrar): incluir duracao nos CREATE TABLE de
+Consultas (INTEGER NOT NULL DEFAULT 30) e Tratamentos (INTEGER NULL)
+em melhorias/SQL_CREATE_TABLES.txt  <-- ATUALIZAR ESTE ARQUIVO
+
+OBS: o app NAO cria/albira schema sozinho; sem o ALTER as queries
+quebram com coluna inexistente.
+
+[ 3 ] CAMADA DE DADOS - database/consultas.py
+---------------------------------------------------
+- criar_consulta(paciente_id, treatment, data_e_horario, valor,
+  metodo_pagamento, compareceu=0, duracao=30)  -> salva duracao
+- update_consulta(consulta_id, treatment, data_e_horario, valor,
+  metodo_pagamento, duracao)                  -> atualiza duracao
+- Expor duracao nos dicts retornados por:
+    buscar_consulta_por_id_dict
+    listar_consultas_com_paciente_por_data
+    listar_consultas_com_paciente_por_periodo
+- (opcional, p/ testes de conflito) helper interno de sobreposicao
+  ou calc feito na view com por_data.
+
+IMPORTANTE: chamadas antigas criar_consulta(...) sem duracao (telas
+de consultas/dia, faltantes, testes) continuam funcionando via default.
+
+[ 4 ] CAMADA DE DADOS - database/tratamentos.py (NOVO)
+---------------------------------------------------
+- create_tratamento(nome, valor, duracao=None)
+- update_tratamento(id, nome, valor, duracao)
+- deletar_tratamento(id)
+- Sempre filtrados por usuario logado (usuario_id_obrigatorio)
+- Registrar exports em database/__init__.py
+
+[ 5 ] TELA DE TRATAMENTOS - views/tratamentos.py (NOVO) + app.py
+---------------------------------------------------
+- Lista de tratamentos (nome, valor, duracao) do usuario logado
+- Botoes: adicionar novo, editar, excluir
+- Form: Nome, Valor (R$), Duracao (min, opcional/vazio = nao definida)
+- Registar no app.py:
+    - import em "from views import ..."
+    - item novo no menu lateral: "Tratamentos" -> self.mostrar_tratamentos
+    - metodo mostrar_tratamentos (limpa frame + chama view)
+
+[ 6 ] AGENDA SEMANAL - views/agenda_Semanal.py
+---------------------------------------------------
+(6a) Popup NOVO AGENDAMENTO:
+     - campo "Duracao (min)" ao lado de valor/horario
+     - ao selecionar tratamento: se t.duracao preenchido, preenche
+       o campo duracao; se vazio(None), preenche 30; valor tambem ja preenche
+     - salvar_agendamento: validar duracao (int > 0) e chamar
+       criar_consulta(..., duracao=duracao)
+(6b) Popup EDITAR AGENDAMENTO:
+     - campo duracao pre-preenchido com consulta["duracao"]
+     - ao trocar tratamento, reaplica autofill (se tratamento tem duracao)
+     - realizar_update: validar e chamar update_consulta(..., duracao)
+(6c) CONFLITO DE HORARIO (novo + editar):
+     - antes de salvar, buscar consultas do dia (por_data) FORA da propria
+       consulta e verificar se [inicio, inicio+duracao) colide:
+         conflito se max(inicioA, inicioB) < min(fimA, fimB)
+         fimA = inicioA + duracao
+     - se conflitar: mostrar erro e NAO salvar
+     - nao deixar passar das 20:00 (clampar duracao ou avisar)
+     - criar_consulta/update_consulta do banco NAO bloqueiam (validacao
+       apenas na UI da agenda, por enquanto)
+(6d) RENDERIZACAO DOS CARDS (desenhar_grade):
+     - altura do card = duracao/60 * px_hora  (antes: 1 bloco fixo)
+     - y = topo do horario de inicio; card cobre do inicio ate o fim
+     - manter logica de reuso de cards (itens_cards) e _ajustar_card
+     - card de duracao que passe de 20:00: cortar na borda inferior
+
+[ 7 ] TESTES (tests/)
+---------------------------------------------------
+- test_database_consultas.py:
+    * criar_consulta sem duracao -> duracao == 30 (default)
+    * criar_consulta com duracao 45 -> salva 45
+    * update_consulta muda duracao
+    * dicts (por_data/por_periodo/buscar_id_dict) incluem duracao
+- test_database_tratamentos.py (NOVO):
+    * create/update/delete tratamento com e sem duracao
+    * isolamento por usuario
+- (opcional) helper de conflito testado:
+    * fim == inicio de outra NAO conflita (limite exato ok)
+    * sobreposicao parcial conflita
+
+[ 8 ] VALIDACAO FINAL
+---------------------------------------------------
+- Rodar: .venv\Scripts\python.exe -m pytest -q   (tudo verde)
+- Rodar: .venv\Scripts\python.exe -m ruff check .
+- Abrir o app: abrir menu -> Tratamentos, criar um com duracao
+- Na agenda: novo agendamento -> escolher tratamento com duracao
+  (campo preenche sozinho), confirmar -> card cobre 2o bloco
+- Tentar criar em horario conflitante -> deve bloquear com erro
+
+==================================================================
+ARQUIVOS TOCADOS
+==================================================================
+- database/models.py                 (2 colunas)
+- database/consultas.py              (create/update/dicts)
+- database/tratamentos.py            (NOVO)
+- database/__init__.py               (exports de tratamentos)
+- views/agenda_Semanal.py            (popups, conflito, altura do card)
+- views/tratamentos.py               (NOVO)
+- app.py                             (import + menu + mostrar_tratamentos)
+- tests/test_database_consultas.py   (duracao)
+- tests/test_database_tratamentos.py (NOVO)
+- melhorias/SQL_CREATE_TABLES.txt    (coluna no schema do Supabase)
+- este arquivo                       (plano)
+
+==================================================================
+DECISOES FECHADAS COM O USUARIO
+==================================================================
+- Tratamento sem duracao definida  -> consulta usa 30 min default
+- Nao pode pegar horario de outra consulta (bloqueio de conflito)
+- Card cobre do comeco ao termino da consulta (nao 1 bloco fixo)
+- Definir duracao: tela de Tratamentos E auto-preenchimento no popup
+- Escopo: so a Agenda Semanal (outras telas seguem com 30 min)
+==================================================================

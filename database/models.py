@@ -36,6 +36,7 @@ class Consulta(Base):
     metodo_pagamento = Column(String)
     compareceu = Column(Integer, default=0)
     pago = Column(Boolean, default=False)
+    duracao = Column(Integer, default=30)
 
     paciente = relationship("Paciente", back_populates="consultas")
 
@@ -60,3 +61,4 @@ class Tratamento(Base):
     id = Column(Integer, primary_key=True)
     nome = Column(String)
     valor = Column(Float)
+    duracao = Column(Integer, nullable=True)
