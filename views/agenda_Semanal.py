@@ -8,6 +8,7 @@ from customtkinter import CTkCanvas
 from database.consultas import (
     criar_consulta,
     deletar_consulta,
+    listar_consultas_com_paciente_por_data,
     listar_consultas_com_paciente_por_periodo,
     listar_tratamentos,
     proxima_consulta,
@@ -79,6 +80,23 @@ def _inicio_semana(data):
     return data - timedelta(days=data.weekday())
 
 
+def _conflita(inicio_a, fim_a, inicio_b, fim_b):
+    """True se os intervalos [inicio_a, fim_a) e [inicio_b, fim_b) se sobrepõem.
+
+    Limites exatos não conflitam: uma consulta pode terminar exatamente quando
+    outra começa (fim == início é permitido).
+    """
+    return inicio_a < fim_b and inicio_b < fim_a
+
+
+def _altura_card(px_hora, duracao):
+    """Altura do card em pixels para uma duração: cobre [início, início+duração).
+
+    Piso de 14px só para o card continuar clicável com durações minúsculas.
+    """
+    return max(px_hora * duracao / 60, 14)
+
+
 def mostrar(parent):
     """Constrói a tela da agenda semanal dentro do container pai."""
     _inicializar_estado()
@@ -94,13 +112,29 @@ def mostrar(parent):
 
     # ==================== CRIAR / EDITAR AGENDAMENTOS ====================
 
+    def _achar_conflito(data_e_horario, duracao, ignorar_consulta_id=None):
+        """Retorna a consulta que conflita com [início, início+duracao) no mesmo dia, ou None."""
+        fim = data_e_horario + timedelta(minutes=duracao)
+        try:
+            consultas_dia = listar_consultas_com_paciente_por_data(data_e_horario.strftime("%Y-%m-%d"))
+        except Exception:
+            consultas_dia = []
+        for c in consultas_dia:
+            if c["consulta_id"] == ignorar_consulta_id:
+                continue
+            c_inicio = c["data"]
+            c_fim = c_inicio + timedelta(minutes=(c.get("duracao") or 30))
+            if _conflita(data_e_horario, fim, c_inicio, c_fim):
+                return c
+        return None
+
     def abrir_janela_novo_agendamento(data_selecionada, horario_selecionado):
         """Abre o pop-up de cadastro de um novo agendamento."""
         frame_criar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
         frame_criar_consulta.title("Novo Agendamento")
 
         largura_janela = 400
-        altura_janela = 460
+        altura_janela = 520
 
         largura_tela = frame_criar_consulta.winfo_screenwidth()
         altura_tela = frame_criar_consulta.winfo_screenheight()
@@ -139,8 +173,26 @@ def mostrar(parent):
                 resultado_salvar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
+            duracao_texto = duracao_entry.get().strip()
+            duracao = 30
+            if duracao_texto:
+                if not duracao_texto.isdigit() or int(duracao_texto) <= 0:
+                    resultado_salvar_label.configure(text="❌ Duração inválida (minutos).", text_color="#ff4a4a")
+                    return
+                duracao = int(duracao_texto)
+
+            conflito = _achar_conflito(data_e_horario_final, duracao)
+            if conflito:
+                resultado_salvar_label.configure(
+                    text=f"❌ Conflito às {conflito['data'].strftime('%H:%M')}: {conflito['nome'].title()}",
+                    text_color="#ff4a4a",
+                )
+                return
+
             try:
-                consulta_id = criar_consulta(paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo)
+                consulta_id = criar_consulta(
+                    paciente_selecionado["id"], tratamento, data_e_horario_final, valor, metodo, duracao=duracao
+                )
                 criar_orcamento(consulta_id, paciente_selecionado["id"], valor, metodo, data_e_horario_final, status=0)
             except Exception:
                 resultado_salvar_label.configure(text="❌ Erro ao salvar no banco", text_color="#ff4a4a")
@@ -212,12 +264,17 @@ def mostrar(parent):
 
         def ao_selecionar_tratamento(tratamento_selecionado):
             valor = 0
+            duracao_trat = None
             for t in tratamentos_db:
                 if str(t.nome) == str(tratamento_selecionado):
                     valor = t.valor
+                    duracao_trat = t.duracao
                     break
             valor_entry.delete(0, "end")
             valor_entry.insert(0, f"{float(valor):.2f}")
+            duracao_entry.delete(0, "end")
+            if duracao_trat is not None:
+                duracao_entry.insert(0, str(duracao_trat))
 
         ctk.CTkLabel(frame_criar_consulta, text="Tratamento:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(
             anchor="w", padx=25, pady=(8, 0)
@@ -284,6 +341,19 @@ def mostrar(parent):
         )
         metodo_dropdown.pack(fill="x", pady=2)
 
+        linha_duracao = ctk.CTkFrame(frame_criar_consulta, fg_color="transparent")
+        linha_duracao.pack(fill="x", padx=25, pady=4)
+
+        coluna_duracao = ctk.CTkFrame(linha_duracao, fg_color="transparent")
+        coluna_duracao.pack(side="left", expand=True, fill="x", padx=(0, 5))
+        ctk.CTkLabel(coluna_duracao, text="Duração (min):", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(
+            anchor="w"
+        )
+        duracao_entry = ctk.CTkEntry(
+            coluna_duracao, placeholder_text="em branco = 30 min", fg_color="#2b2b2b"
+        )
+        duracao_entry.pack(fill="x", pady=2)
+
         resultado_salvar_label = ctk.CTkLabel(frame_criar_consulta, text="", font=("Segoe UI", 11))
         resultado_salvar_label.pack(pady=4)
 
@@ -304,7 +374,7 @@ def mostrar(parent):
         frame_editar_consulta.title("Editar Consulta")
 
         largura_janela = 400
-        altura_janela = 420
+        altura_janela = 480
 
         largura_tela = frame_editar_consulta.winfo_screenwidth()
         altura_tela = frame_editar_consulta.winfo_screenheight()
@@ -327,12 +397,17 @@ def mostrar(parent):
 
         def ao_selecionar_tratamento(tratamento_selecionado):
             valor = 0
+            duracao_trat = None
             for t in tratamentos_db:
                 if str(t.nome) == str(tratamento_selecionado):
                     valor = t.valor
+                    duracao_trat = t.duracao
                     break
             valor_entry.delete(0, "end")
             valor_entry.insert(0, f"{float(valor):.2f}")
+            duracao_entry.delete(0, "end")
+            if duracao_trat is not None:
+                duracao_entry.insert(0, str(duracao_trat))
 
         tratamento_dropdown = ctk.CTkComboBox(
             frame_editar_consulta,
@@ -367,6 +442,12 @@ def mostrar(parent):
         metodo_dropdown.pack(pady=6)
         metodo_dropdown.set(consulta["metodo_pagamento"] if "metodo_pagamento" in consulta else "Método de pagamento")
 
+        duracao_entry = ctk.CTkEntry(
+            frame_editar_consulta, width=280, placeholder_text="Duração em minutos (30 padrão)", fg_color="#2b2b2b"
+        )
+        duracao_entry.pack(pady=6)
+        duracao_entry.insert(0, str(consulta.get("duracao") or 30))
+
         resultado_editar_label = ctk.CTkLabel(frame_editar_consulta, text="", font=("Segoe UI", 12))
         resultado_editar_label.pack(pady=5)
 
@@ -390,8 +471,27 @@ def mostrar(parent):
                 resultado_editar_label.configure(text="❌ Data ou Horário inválidos.", text_color="#ff4a4a")
                 return
 
+            duracao_texto = duracao_entry.get().strip()
+            duracao = 30
+            if duracao_texto:
+                if not duracao_texto.isdigit() or int(duracao_texto) <= 0:
+                    resultado_editar_label.configure(text="❌ Duração inválida (minutos).", text_color="#ff4a4a")
+                    return
+                duracao = int(duracao_texto)
+
+            conflito = _achar_conflito(data_e_horario_final, duracao, ignorar_consulta_id=consulta["consulta_id"])
+            if conflito:
+                resultado_editar_label.configure(
+                    text=f"❌ Conflito às {conflito['data'].strftime('%H:%M')}: {conflito['nome'].title()}",
+                    text_color="#ff4a4a",
+                )
+                return
+
             try:
-                update_consulta(consulta["consulta_id"], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo)
+                update_consulta(
+                    consulta["consulta_id"], novo_tratamento, data_e_horario_final, novo_valor, novo_metodo,
+                    duracao=duracao,
+                )
                 update_orcamento_por_consulta(
                     consulta["consulta_id"], consulta["paciente_id"], novo_valor, novo_metodo, status=0
                 )
@@ -542,12 +642,13 @@ def mostrar(parent):
         for c in cache_consultas["consultas"]:
             por_dia.setdefault(c["data"].strftime("%Y-%m-%d"), []).append(c)
 
-        h_card = px_hora * gran / 60  # duração exata do slot: 08:00 → 08:30
         presentes = set()
         idx = 0
         for i, d in enumerate(dias):
             for c in por_dia.get(d.strftime("%Y-%m-%d"), []):
                 t = c["data"]
+                duracao = c.get("duracao") or 30
+                h_card = _altura_card(px_hora, duracao)
                 min_inicio = t.hour * 60 + t.minute
                 if min_inicio < HORA_INICIO * 60 or min_inicio >= HORA_FIM * 60:
                     continue

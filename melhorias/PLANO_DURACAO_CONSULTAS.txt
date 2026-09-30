@@ -22,30 +22,24 @@ ORDEM DE EXECUCAO (passo a passo)
   (None = duracao nao definida -> consulta usa 30)
 
 [ 2 ] BANCO DE DADOS - SQL PRODUCAO (rodar manualmente na maquina)
----------------------------------------------------
+--------------------------------------------------
 SQL Server local (instancia @MARCELO, ao vivo): executar no SSMS:
 
     ALTER TABLE Consultas ADD duracao INTEGER NOT NULL DEFAULT 30;
     ALTER TABLE Tratamentos ADD duracao INTEGER NULL;
 
-Supabase (quando migrar): incluir duracao nos CREATE TABLE de
-Consultas (INTEGER NOT NULL DEFAULT 30) e Tratamentos (INTEGER NULL)
-em melhorias/SQL_CREATE_TABLES.txt  <-- ATUALIZAR ESTE ARQUIVO
+Supabase (PostgreSQL): os nomes precisam de ASPAS por causa do case-
+sensitive do Postgres (as tabelas existem como "Consultas"). Sem as
+aspas o Postgres passa o nome pra minusculas e da erro 42P01:
 
-OBS: o app NAO cria/albira schema sozinho; sem o ALTER as queries
+    ALTER TABLE "Consultas"   ADD COLUMN duracao INTEGER NOT NULL DEFAULT 30;
+    ALTER TABLE "Tratamentos" ADD COLUMN duracao INTEGER NULL;
+
+melhorias/SQL_CREATE_TABLES.txt ja foi atualizado com as colunas
+duracao (criacao do zero inclusive).
+
+OBS: o app NAO cria/migra schema sozinho; sem o ALTER as queries
 quebram com coluna inexistente.
-
-
-
-[ 5 ] TELA DE TRATAMENTOS - views/tratamentos.py (NOVO) + app.py
----------------------------------------------------
-- Lista de tratamentos (nome, valor, duracao) do usuario logado
-- Botoes: adicionar novo, editar, excluir
-- Form: Nome, Valor (R$), Duracao (min, opcional/vazio = nao definida)
-- Registar no app.py:
-    - import em "from views import ..."
-    - item novo no menu lateral: "Tratamentos" -> self.mostrar_tratamentos
-    - metodo mostrar_tratamentos (limpa frame + chama view)
 
 [ 6 ] AGENDA SEMANAL - views/agenda_Semanal.py
 ---------------------------------------------------

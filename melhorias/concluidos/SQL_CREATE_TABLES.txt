@@ -38,7 +38,8 @@ CREATE TABLE IF NOT EXISTS "Consultas" (
     valor            NUMERIC(10,2),
     metodo_pagamento VARCHAR(50),
     compareceu       INTEGER DEFAULT 0,
-    pago             BOOLEAN DEFAULT FALSE
+    pago             BOOLEAN DEFAULT FALSE,
+    duracao          INTEGER NOT NULL DEFAULT 30
 );
 
 -- Orcamentos (vinculado a Consulta e Paciente via FOREIGN KEY)
@@ -54,9 +55,10 @@ CREATE TABLE IF NOT EXISTS "Orcamentos" (
 
 -- Tratamentos (lista de procedimentos com valor padrao)
 CREATE TABLE IF NOT EXISTS "Tratamentos" (
-    id    SERIAL PRIMARY KEY,
-    nome  VARCHAR(150),
-    valor NUMERIC(10,2)
+    id      SERIAL PRIMARY KEY,
+    nome    VARCHAR(150),
+    valor   NUMERIC(10,2),
+    duracao INTEGER NULL
 );
 
 ==================================================================
