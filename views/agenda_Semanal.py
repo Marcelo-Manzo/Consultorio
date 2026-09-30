@@ -1,4 +1,5 @@
 import time
+import tkinter as tk
 from datetime import date, datetime, timedelta
 
 import customtkinter as ctk
@@ -47,6 +48,7 @@ PX_HORA = 54         # altura mínima em pixels de 1 hora
 HORA_INICIO = 7      # a grade começa às 07:00
 HORA_FIM = 20        # e termina às 20:00
 ALTURA_GRID = (HORA_FIM - HORA_INICIO) * PX_HORA
+ALTURA_MIN_TRATAMENTO = 48  # abaixo disso o 2º label (tratamento) não cabe no card
 
 
 def _altura_grid(canvas):
@@ -121,6 +123,9 @@ def mostrar(parent):
             valor_str = valor.strip()
             if paciente_selecionado["id"] is None:
                 resultado_salvar_label.configure(text="❌ Busque e selecione um paciente primeiro.", text_color="#f87171")
+                return
+            if tratamento not in tratamentos_lista:
+                resultado_salvar_label.configure(text="❌ Selecione um tratamento.", text_color="#f87171")
                 return
             if not valor_str:
                 resultado_salvar_label.configure(text="❌ Digite um valor", text_color="#f87171")
@@ -258,6 +263,13 @@ def mostrar(parent):
         ctk.CTkLabel(coluna_valor, text="Valor:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(anchor="w")
         valor_entry = ctk.CTkEntry(coluna_valor, placeholder_text="ex: 150.00", fg_color="#2b2b2b")
         valor_entry.pack(fill="x", pady=2)
+
+        # Tratamento padrão: evita salvar o texto "CTkComboBox" quando nada é escolhido
+        if tratamentos_lista:
+            tratamento_dropdown.set(tratamentos_lista[0])
+            ao_selecionar_tratamento(tratamentos_lista[0])
+        else:
+            tratamento_dropdown.set("")
 
         coluna_pagamento = ctk.CTkFrame(linha_valor_pago, fg_color="transparent")
         coluna_pagamento.pack(side="right", expand=True, fill="x", padx=(5, 0))
@@ -433,12 +445,21 @@ def mostrar(parent):
         hora = c["data"].strftime("%H:%M")
         card = ctk.CTkFrame(refs["canvas"], fg_color=cor, corner_radius=5)
 
-        ctk.CTkLabel(
-            card, text=f"{hora}  {c['nome']}", font=("Segoe UI", 10, "bold"), text_color="#ffffff"
-        ).pack(anchor="w", padx=5, pady=(2, 0))
-        ctk.CTkLabel(
-            card, text=c["tratamento"], font=("Segoe UI", 9), text_color="#e8eaed"
-        ).pack(anchor="w", padx=5, pady=(0, 2))
+        # tk.Label puro (fundo = cor do card): o CTkLabel desenha um canvas interno que
+        # aparecia como uma faixa clara ("rebarba") sob o texto em cards baixos.
+        tk.Label(
+            card, text=f"{hora}  {c['nome']}", font=("Segoe UI", 14, "bold"),
+            fg="#ffffff", bg=cor, bd=0, highlightthickness=0, padx=0, pady=0,
+        ).pack(anchor="w", padx=7, pady=(2, 0))
+
+        # Label do tratamento: só aparece quando o card é alto o bastante (ver _ajustar_card)
+        lab_trat = tk.Label(
+            card, text=c["tratamento"], font=("Segoe UI", 9),
+            fg="#e8eaed", bg=cor, bd=0, highlightthickness=0, padx=0, pady=0,
+        )
+        lab_trat.pack(anchor="w", padx=7, pady=(0, 3))
+        card._lab_trat = lab_trat
+        card._trat_visivel = True
 
         def ao_editar(e, cc=c):
             abrir_janela_editar(cc)
@@ -447,6 +468,17 @@ def mostrar(parent):
         for filho in card.winfo_children():
             filho.bind("<Double-Button-1>", ao_editar)
         return card
+
+    def _ajustar_card(card, altura):
+        """Esconde o label de tratamento quando o card é baixo demais (evita a 'rebarba')."""
+        mostrar_trat = altura >= ALTURA_MIN_TRATAMENTO
+        if mostrar_trat == card._trat_visivel:
+            return
+        if mostrar_trat:
+            card._lab_trat.pack(anchor="w", padx=7, pady=(0, 3))
+        else:
+            card._lab_trat.pack_forget()
+        card._trat_visivel = mostrar_trat
 
     def desenhar_grade():
         canvas = refs["canvas"]
@@ -530,9 +562,11 @@ def mostrar(parent):
                         x, y, anchor="nw", window=card, width=larg, height=altu, tags="cards"
                     )
                     itens_cards[chave] = [novo_item, card]
+                    _ajustar_card(card, altu)
                 else:
                     canvas.coords(item[0], x, y)
                     canvas.itemconfigure(item[0], width=larg, height=altu)
+                    _ajustar_card(item[1], altu)
                 presentes.add(chave)
                 idx += 1
 
@@ -857,7 +891,7 @@ def mostrar(parent):
     gran_seg.set(f"{estado['granularidade']} min")
 
     dica = ctk.CTkLabel(
-        parent, text="Dica: duplo clique num horário vazio agendamento • duplo clique num card edita",
+        parent, text="Dica: duplo clique num horário vazio para agendar • duplo clique num card edita",
         font=("Segoe UI", 11), text_color="#9aa0a6",
     )
     dica.pack(anchor="w", padx=10, pady=(0, 6))
