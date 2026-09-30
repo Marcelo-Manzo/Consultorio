@@ -104,8 +104,8 @@ def mostrar(parent):
                     update_tratamento(tratamento.id, nome, valor, duracao)
                 else:
                     create_tratamento(nome, valor, duracao)
-            except Exception:
-                resultado_label.configure(text="❌ Erro ao salvar tratamento no banco", text_color="#f87171")
+            except Exception as e:
+                resultado_label.configure(text=f"❌ Erro ao salvar: {e}", text_color="#f87171")
                 return
 
             atualizar_lista()
@@ -126,8 +126,8 @@ def mostrar(parent):
         try:
             deletar_tratamento(tratamento_id)
             atualizar_lista()
-        except Exception:
-            resultado_label_busca.configure(text="❌ Erro ao excluir tratamento no banco", text_color="#f87171")
+        except Exception as e:
+            resultado_label_busca.configure(text=f"❌ Erro ao excluir: {e}", text_color="#f87171")
 
     # =========================================================================
     # TELA PRINCIPAL (LISTAGEM E GESTÃO)
@@ -173,8 +173,8 @@ def mostrar(parent):
 
         try:
             tratamentos = listar_tratamentos()
-        except Exception:
-            resultado_label_busca.configure(text="❌ Erro ao buscar tratamentos no banco", text_color="#f87171")
+        except Exception as e:
+            resultado_label_busca.configure(text=f"❌ Erro ao buscar tratamentos: {e}", text_color="#f87171")
             return
 
         if not tratamentos:

@@ -134,16 +134,6 @@ def mostrar(parent):
         frame_criar_consulta.title("Novo Agendamento")
 
         largura_janela = 400
-        altura_janela = 520
-
-        largura_tela = frame_criar_consulta.winfo_screenwidth()
-        altura_tela = frame_criar_consulta.winfo_screenheight()
-
-        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
-        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
-
-        frame_criar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
-        frame_criar_consulta.grab_set()
 
         paciente_selecionado = {"id": None, "nome": ""}
 
@@ -321,13 +311,6 @@ def mostrar(parent):
         valor_entry = ctk.CTkEntry(coluna_valor, placeholder_text="ex: 150.00", fg_color="#2b2b2b")
         valor_entry.pack(fill="x", pady=2)
 
-        # Tratamento padrão: evita salvar o texto "CTkComboBox" quando nada é escolhido
-        if tratamentos_lista:
-            tratamento_dropdown.set(tratamentos_lista[0])
-            ao_selecionar_tratamento(tratamentos_lista[0])
-        else:
-            tratamento_dropdown.set("")
-
         coluna_pagamento = ctk.CTkFrame(linha_valor_pago, fg_color="transparent")
         coluna_pagamento.pack(side="right", expand=True, fill="x", padx=(5, 0))
         ctk.CTkLabel(coluna_pagamento, text="Pagamento:", font=("Segoe UI", 11, "bold"), text_color="#a0a0a5").pack(
@@ -354,6 +337,14 @@ def mostrar(parent):
         )
         duracao_entry.pack(fill="x", pady=2)
 
+        # Tratamento padrão: evita salvar o texto "CTkComboBox" quando nada é escolhido.
+        # (fica aqui, depois dos campos, porque o autopreenchimento usa valor_entry e duracao_entry)
+        if tratamentos_lista:
+            tratamento_dropdown.set(tratamentos_lista[0])
+            ao_selecionar_tratamento(tratamentos_lista[0])
+        else:
+            tratamento_dropdown.set("")
+
         resultado_salvar_label = ctk.CTkLabel(frame_criar_consulta, text="", font=("Segoe UI", 11))
         resultado_salvar_label.pack(pady=4)
 
@@ -368,22 +359,22 @@ def mostrar(parent):
             width=220,
         ).pack(pady=(5, 15))
 
+        # Altura automática (o conteúdo pode variar) e centralização
+        frame_criar_consulta.update_idletasks()
+        altura_janela = frame_criar_consulta.winfo_reqheight()
+        largura_tela = frame_criar_consulta.winfo_screenwidth()
+        altura_tela = frame_criar_consulta.winfo_screenheight()
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+        frame_criar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        frame_criar_consulta.grab_set()
+
     def abrir_janela_editar(consulta):
         """Abre o pop-up de edição da consulta, com opção de excluir."""
         frame_editar_consulta = ctk.CTkToplevel(parent, fg_color="#1e1f22")
         frame_editar_consulta.title("Editar Consulta")
 
         largura_janela = 400
-        altura_janela = 480
-
-        largura_tela = frame_editar_consulta.winfo_screenwidth()
-        altura_tela = frame_editar_consulta.winfo_screenheight()
-
-        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
-        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
-
-        frame_editar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
-        frame_editar_consulta.grab_set()
 
         ctk.CTkLabel(
             frame_editar_consulta, text="Editar Agendamento", font=("Segoe UI", 16, "bold"), text_color="#ffffff"
@@ -537,6 +528,16 @@ def mostrar(parent):
             height=35,
             width=90,
         ).pack(side="left", padx=6)
+
+        # Altura automática (o conteúdo pode variar) e centralização
+        frame_editar_consulta.update_idletasks()
+        altura_janela = frame_editar_consulta.winfo_reqheight()
+        largura_tela = frame_editar_consulta.winfo_screenwidth()
+        altura_tela = frame_editar_consulta.winfo_screenheight()
+        posicao_x = int((largura_tela / 2) - (largura_janela / 2))
+        posicao_y = int((altura_tela / 2) - (altura_janela / 2))
+        frame_editar_consulta.geometry(f"{largura_janela}x{altura_janela}+{posicao_x}+{posicao_y}")
+        frame_editar_consulta.grab_set()
 
     # ==================== RENDERIZAÇÃO DA GRADE SEMANAL ====================
 

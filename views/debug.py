@@ -60,6 +60,19 @@ def mostrar(parent):
             lbl_status_db.configure(text="Erro ao consultar", text_color="#f87171")
             log(f"Erro ao contar registros: {e}", "ERRO")
 
+    def corrigir_sequencias_click():
+        lbl_status_db.configure(text="Corrigindo...", text_color="#fbbf24")
+        parent.update_idletasks()
+
+        try:
+            db_debug.corrigir_sequencias()
+            lbl_status_db.configure(text="Sequências corrigidas", text_color="#4ade80")
+            log("Sequências (auto-incremento) corrigidas", "OK")
+            contar_registros()
+        except Exception as e:
+            lbl_status_db.configure(text="Erro ao corrigir", text_color="#f87171")
+            log(f"Erro ao corrigir sequências: {e}", "ERRO")
+
     def rodar_diagnostico_completo():
         log("=== INICIANDO DIAGNÓSTICO ===", "INFO")
 
@@ -140,7 +153,13 @@ def mostrar(parent):
     frame_cards.columnconfigure((0, 1), weight=1)
 
     cards_tabelas = {}
-    nomes_tabelas = [("Pacientes", 0, 0), ("Consultas", 0, 1), ("Orcamentos", 1, 0), ("Tratamentos", 1, 1)]
+    nomes_tabelas = [
+        ("Pacientes", 0, 0),
+        ("Consultas", 0, 1),
+        ("Orcamentos", 1, 0),
+        ("Tratamentos", 1, 1),
+        ("Usuarios", 2, 0),
+    ]
 
     for nome, row, col in nomes_tabelas:
         card = ctk.CTkFrame(frame_cards, fg_color="#1e1f22", border_width=1, border_color="#2b2d31", corner_radius=8)
@@ -153,16 +172,31 @@ def mostrar(parent):
 
         cards_tabelas[nome] = {"qtd": lbl_qtd}
 
-    # Botão diagnóstico completo
+    # Botões de ação (diagnóstico + correção de sequências)
+    frame_footer = ctk.CTkFrame(container, fg_color="transparent")
+    frame_footer.grid(row=2, column=0, sticky="ew", padx=(0, 8), pady=(0, 10))
+    frame_footer.columnconfigure(0, weight=1)
+    frame_footer.columnconfigure(1, weight=1)
+
     ctk.CTkButton(
-        container,
+        frame_footer,
         text="Rodar Diagnóstico Completo",
         command=rodar_diagnostico_completo,
         fg_color="#2b7a3e",
         hover_color="#1e542b",
         font=("Segoe UI", 13, "bold"),
         height=38,
-    ).grid(row=2, column=0, sticky="ew", padx=(0, 8), pady=(0, 10))
+    ).grid(row=0, column=0, sticky="ew", padx=(0, 4))
+
+    ctk.CTkButton(
+        frame_footer,
+        text="Corrigir Sequências",
+        command=corrigir_sequencias_click,
+        fg_color="#8a6d1a",
+        hover_color="#6b5420",
+        font=("Segoe UI", 13, "bold"),
+        height=38,
+    ).grid(row=0, column=1, sticky="ew", padx=(4, 0))
 
     # ==================== COLUNA DIREITA (LOG) ====================
 
