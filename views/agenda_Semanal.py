@@ -50,6 +50,8 @@ HORA_INICIO = 7      # a grade começa às 07:00
 HORA_FIM = 20        # e termina às 20:00
 ALTURA_GRID = (HORA_FIM - HORA_INICIO) * PX_HORA
 ALTURA_MIN_TRATAMENTO = 48  # abaixo disso o 2º label (tratamento) não cabe no card
+RAIO_LINHA_AGORA = 5         # raio da bolinha no início da linha vermelha do "agora"
+COR_COLUNA_HOJE = "#22314d"  # fundo da coluna do dia atual (usado atrás da bolinha)
 
 
 def _altura_grid(canvas):
@@ -97,11 +99,26 @@ def _altura_card(px_hora, duracao):
     return max(px_hora * duracao / 60, 14)
 
 
+def _consulta_passou(c, agora):
+    """True se a consulta já terminou (fim = início + duração) em relação a `agora`."""
+    fim = c["data"] + timedelta(minutes=(c.get("duracao") or 30))
+    return fim <= agora
+
+
+def _escurecer(cor):
+    """Mistura a cor do card com o fundo da grade (consultas que já passaram)."""
+    partes = (1, 3, 5)
+    rgb_cor = tuple(int(cor[i : i + 2], 16) for i in partes)
+    rgb_fundo = tuple(int(COR_FUNDO[i : i + 2], 16) for i in partes)
+    return "#" + "".join(f"{round(c * 0.45 + f * 0.55):02x}" for c, f in zip(rgb_cor, rgb_fundo))
+
+
 def mostrar(parent):
     """Constrói a tela da agenda semanal dentro do container pai."""
     _inicializar_estado()
 
-    refs = {"canvas": None, "lab_dias": [], "titulo": None, "mini_container": None, "prox_container": None}
+    refs = {"canvas": None, "lab_dias": [], "titulo": None, "mini_container": None, "prox_container": None,
+            "overlay_agora": None, "ponto_agora": None}
     itens_cards = {}  # consulta_id -> [item no canvas, widget do card] — reaproveita cards entre redraws
     cache_consultas = {"seg": None, "consultas": []}  # evita reconsultar o banco a cada redraw
     _cfg_redraw = {"pendente": None, "ult_tam": (0, 0)}  # debounce do evento <Configure>
@@ -541,17 +558,29 @@ def mostrar(parent):
 
     # ==================== RENDERIZAÇÃO DA GRADE SEMANAL ====================
 
-    def criar_card_consulta(c, idx):
+    def _pintar_card(card, cor_base, passou):
+        """Aplica as cores do card: escurece a consulta que já terminou."""
+        cor = _escurecer(cor_base) if passou else cor_base
+        card.configure(fg_color=cor)
+        card._lab_titulo.configure(bg=cor, fg="#8b9099" if passou else "#ffffff")
+        card._lab_trat.configure(bg=cor, fg="#767b83" if passou else "#e8eaed")
+        card._cor_base = cor_base
+        card._cor_efetiva = cor
+        card._passou = passou
+
+    def criar_card_consulta(c, idx, passou=False):
         cor = PALETA[idx % len(PALETA)]
         hora = c["data"].strftime("%H:%M")
         card = ctk.CTkFrame(refs["canvas"], fg_color=cor, corner_radius=5)
 
         # tk.Label puro (fundo = cor do card): o CTkLabel desenha um canvas interno que
         # aparecia como uma faixa clara ("rebarba") sob o texto em cards baixos.
-        tk.Label(
+        lab_titulo = tk.Label(
             card, text=f"{hora}  {c['nome'].title()}", font=("Segoe UI", 14, "bold"),
             fg="#ffffff", bg=cor, bd=0, highlightthickness=0, padx=0, pady=0,
-        ).pack(anchor="w", padx=7, pady=(2, 0))
+        )
+        lab_titulo.pack(anchor="w", padx=7, pady=(2, 0))
+        card._lab_titulo = lab_titulo
 
         # Label do tratamento: só aparece quando o card é alto o bastante (ver _ajustar_card)
         lab_trat = tk.Label(
@@ -568,7 +597,38 @@ def mostrar(parent):
         card.bind("<Double-Button-1>", ao_editar)
         for filho in card.winfo_children():
             filho.bind("<Double-Button-1>", ao_editar)
+
+        _pintar_card(card, cor, passou)
         return card
+
+    def _cor_atras(cx, cy, x0, day_w, alt):
+        """Cor que está atrás de um ponto (x, y) da grade: card, coluna de hoje ou fundo.
+
+        A bolinha da linha do "agora" fica em cima de DUAS cores (metade na coluna de
+        hoje, metade na coluna anterior), então ela é pintada com uma cor por metade —
+        assim o widget quadrado fica invisível e sobra só o círculo.
+        """
+        canvas = refs["canvas"]
+        for item in itens_cards.values():
+            x, y = canvas.coords(item[0])
+            larg = float(canvas.itemcget(item[0], "width"))
+            altu = float(canvas.itemcget(item[0], "height"))
+            if x <= cx <= x + larg and y <= cy <= y + altu:
+                return item[1]._cor_efetiva
+        if x0 <= cx <= x0 + day_w and 0 <= cy <= alt:
+            return COR_COLUNA_HOJE
+        return COR_FUNDO
+
+    def _pintar_bolinha_agora(ponto, x_centro, y_centro, x0, day_w, alt):
+        """Pinta o fundo da bolinha com a cor exata de cada metade (some com o quadrado)."""
+        r = RAIO_LINHA_AGORA
+        cor_esq = _cor_atras(x_centro - r / 2, y_centro, x0, day_w, alt)
+        cor_dir = _cor_atras(x_centro + r / 2, y_centro, x0, day_w, alt)
+        ponto.configure(bg=cor_esq)  # cor de segurança, caso o retângulo não cubra tudo
+        ponto.delete("fundo_bolinha")
+        ponto.create_rectangle(0, 0, r, 2 * r, fill=cor_esq, outline="", tags="fundo_bolinha")
+        ponto.create_rectangle(r, 0, 2 * r, 2 * r, fill=cor_dir, outline="", tags="fundo_bolinha")
+        ponto.tag_raise("bola")
 
     def _ajustar_card(card, altura):
         """Esconde o label de tratamento quando o card é baixo demais (evita a 'rebarba')."""
@@ -605,7 +665,7 @@ def mostrar(parent):
         hoje = agora.date()
         if hoje in dias:
             xd = GUTTER + dias.index(hoje) * day_w
-            canvas.create_rectangle(xd, 0, xd + day_w, alt, fill="#22314d", outline="", tags="fundo")
+            canvas.create_rectangle(xd, 0, xd + day_w, alt, fill=COR_COLUNA_HOJE, outline="", tags="fundo")
 
         # Linhas horizontais (hora = forte, subdivisões = fracas)
         for minuto in range(HORA_INICIO * 60, HORA_FIM * 60, gran):
@@ -656,10 +716,11 @@ def mostrar(parent):
                 x = GUTTER + i * day_w + 2
                 y = (min_inicio - HORA_INICIO * 60) / minutos_visiveis * alt
                 larg, altu = day_w - 4, h_card
+                passou = _consulta_passou(c, agora)
                 chave = c["consulta_id"]
                 item = itens_cards.get(chave)
                 if item is None:
-                    card = criar_card_consulta(c, idx)
+                    card = criar_card_consulta(c, idx, passou)
                     novo_item = canvas.create_window(
                         x, y, anchor="nw", window=card, width=larg, height=altu, tags="cards"
                     )
@@ -669,6 +730,9 @@ def mostrar(parent):
                     canvas.coords(item[0], x, y)
                     canvas.itemconfigure(item[0], width=larg, height=altu)
                     _ajustar_card(item[1], altu)
+                    # Repinta quando a consulta termina enquanto a tela está aberta
+                    if item[1]._passou != passou:
+                        _pintar_card(item[1], item[1]._cor_base, passou)
                 presentes.add(chave)
                 idx += 1
 
@@ -678,14 +742,29 @@ def mostrar(parent):
             canvas.delete(item)
             card.destroy()
 
-        # Linha vermelha do momento atual, por cima dos cards, com bolinha no início
+        # Linha vermelha do momento atual.
+        # BARRA e BOLINHA são widgets sobrepostos ao canvas: os cards são janelas
+        # embutidas (create_window) e ficariam por cima de qualquer item do canvas.
+        # Como widget é retângulo, a bolinha veste a cor que está atrás dela
+        # (ver _cor_atras_da_bolinha) para os cantos não aparecerem.
+        barra = refs["overlay_agora"]
+        ponto = refs["ponto_agora"]
         if hoje in dias and HORA_INICIO * 60 <= agora.hour * 60 + agora.minute < HORA_FIM * 60:
             x0 = GUTTER + dias.index(hoje) * day_w
             ym = (agora.hour * 60 + agora.minute - HORA_INICIO * 60) / minutos_visiveis * alt
-            r = 5
-            canvas.create_oval(x0 - r, ym - r, x0 + r, ym + r, fill=COR_HOJE, outline="", tags="linha_agora")
-            canvas.create_line(x0 + r, ym, x0 + day_w, ym, fill=COR_HOJE, width=2, tags="linha_agora")
-            canvas.tag_raise("linha_agora")
+            r = RAIO_LINHA_AGORA
+            x_ponto = x0 - r  # bolinha centrada na borda esquerda da coluna de hoje
+            y_vis = ym - canvas.canvasy(0)  # desconta o scroll vertical da grade
+            barra.place(x=x0, y=y_vis - 1, width=max(day_w, 1), height=2)
+            ponto.place(x=x_ponto, y=y_vis - r, width=2 * r, height=2 * r)
+            _pintar_bolinha_agora(ponto, x0, ym, x0, day_w, alt)
+            barra.tkraise()
+            # tk.Canvas remapeia lift()/tkraise() para "raise de item", então o comando
+            # Tcl é chamado direto para subir o widget na pilha.
+            ponto.tk.call("raise", ponto._w)
+        else:
+            barra.place_forget()
+            ponto.place_forget()
 
         canvas.configure(scrollregion=(0, 0, max(cw, GUTTER + 5 * day_w), alt))
 
@@ -1076,6 +1155,26 @@ def mostrar(parent):
     canvas.bind("<Motion>", _ao_mover_mouse)
     canvas.bind("<Leave>", lambda e: _limpar_mais())
     canvas.bind("<Button-1>", _ao_clique)
+
+    # Barra e bolinha do "agora" como widgets IRMÃOS do canvas (mesma origem => e.x/e.y
+    # batem com o canvas, então os mesmos handlers funcionam). Criados depois do canvas
+    # para ficarem acima dele na pilha de widgets.
+    # IMPORTANTE: tk puro e não CTk, porque CTkBaseClass.place() multiplica x/y pelo
+    # scaling da tela e a linha saía deslocada.
+    r_agora = RAIO_LINHA_AGORA
+    barra_agora = tk.Frame(corpo, bg=COR_HOJE, height=2, highlightthickness=0, bd=0)
+    ponto_agora = tk.Canvas(
+        corpo, width=2 * r_agora, height=2 * r_agora, bg=COR_COLUNA_HOJE,
+        highlightthickness=0, bd=0,
+    )
+    ponto_agora.create_oval(0, 0, 2 * r_agora, 2 * r_agora, fill=COR_HOJE, outline="", tags="bola")
+    refs["overlay_agora"] = barra_agora
+    refs["ponto_agora"] = ponto_agora
+    for w in (barra_agora, ponto_agora):
+        w.bind("<Double-Button-1>", ao_duplo_clique)
+        w.bind("<Motion>", _ao_mover_mouse)
+        w.bind("<Leave>", lambda e: _limpar_mais())
+        w.bind("<Button-1>", _ao_clique)
 
     renderizar()
     loop_proxima()
