@@ -35,29 +35,7 @@ em melhorias/SQL_CREATE_TABLES.txt  <-- ATUALIZAR ESTE ARQUIVO
 OBS: o app NAO cria/albira schema sozinho; sem o ALTER as queries
 quebram com coluna inexistente.
 
-[ 3 ] CAMADA DE DADOS - database/consultas.py
----------------------------------------------------
-- criar_consulta(paciente_id, treatment, data_e_horario, valor,
-  metodo_pagamento, compareceu=0, duracao=30)  -> salva duracao
-- update_consulta(consulta_id, treatment, data_e_horario, valor,
-  metodo_pagamento, duracao)                  -> atualiza duracao
-- Expor duracao nos dicts retornados por:
-    buscar_consulta_por_id_dict
-    listar_consultas_com_paciente_por_data
-    listar_consultas_com_paciente_por_periodo
-- (opcional, p/ testes de conflito) helper interno de sobreposicao
-  ou calc feito na view com por_data.
 
-IMPORTANTE: chamadas antigas criar_consulta(...) sem duracao (telas
-de consultas/dia, faltantes, testes) continuam funcionando via default.
-
-[ 4 ] CAMADA DE DADOS - database/tratamentos.py (NOVO)
----------------------------------------------------
-- create_tratamento(nome, valor, duracao=None)
-- update_tratamento(id, nome, valor, duracao)
-- deletar_tratamento(id)
-- Sempre filtrados por usuario logado (usuario_id_obrigatorio)
-- Registrar exports em database/__init__.py
 
 [ 5 ] TELA DE TRATAMENTOS - views/tratamentos.py (NOVO) + app.py
 ---------------------------------------------------

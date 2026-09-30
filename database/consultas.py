@@ -9,7 +9,7 @@ def _filtro_usuario():
     return Consulta.usuario_id == usuario_id_obrigatorio()
 
 
-def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento, compareceu=0):
+def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamento, compareceu=0, duracao=30):
     with get_db() as db:
         consulta = Consulta(
             paciente_id=paciente_id,
@@ -18,6 +18,7 @@ def criar_consulta(paciente_id, treatment, data_e_horario, valor, metodo_pagamen
             valor=valor,
             metodo_pagamento=metodo_pagamento,
             compareceu=compareceu,
+            duracao=duracao,
             usuario_id=usuario_id_obrigatorio(),
         )
         db.add(consulta)
@@ -46,6 +47,7 @@ def buscar_consulta_por_id_dict(consulta_id):
             "valor": consulta.valor,
             "metodo_pagamento": consulta.metodo_pagamento,
             "compareceu": consulta.compareceu,
+            "duracao": consulta.duracao,
         }
 
 
@@ -89,7 +91,7 @@ def deletar_consulta(consulta_id):
         db.commit()
 
 
-def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento):
+def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagamento, duracao=None):
     with get_db() as db:
         consulta = (
             db.query(Consulta).filter(Consulta.id == consulta_id, _filtro_usuario()).first()
@@ -99,6 +101,8 @@ def update_consulta(consulta_id, treatment, data_e_horario, valor, metodo_pagame
             consulta.data = data_e_horario
             consulta.valor = valor
             consulta.metodo_pagamento = metodo_pagamento
+            if duracao is not None:
+                consulta.duracao = duracao
             db.commit()
 
 
@@ -142,6 +146,7 @@ def listar_consultas_com_paciente_por_data(data_selecionada):
                 "valor": c.valor,
                 "metodo_pagamento": c.metodo_pagamento,
                 "compareceu": c.compareceu,
+                "duracao": c.duracao,
                 "paciente_id": p.id,
                 "nome": p.nome,
             }
@@ -178,6 +183,7 @@ def listar_consultas_com_paciente_por_periodo(data_inicio, data_fim):
                 "valor": c.valor,
                 "metodo_pagamento": c.metodo_pagamento,
                 "compareceu": c.compareceu,
+                "duracao": c.duracao,
                 "paciente_id": p.id,
                 "nome": p.nome,
             }

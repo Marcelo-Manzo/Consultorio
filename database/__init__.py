@@ -32,6 +32,11 @@ from .pacientes import (
     excluir_paciente_por_id,
     listar_pacientes,
 )
+from .tratamentos import (
+    create_tratamento,
+    deletar_tratamento,
+    update_tratamento,
+)
 from .usuarios import (
     create_user,
     delete_user_by_id,
@@ -74,6 +79,9 @@ __all__ = [
     "marcar_comparecimento",
     "marcar_pagamento",
     "obter_ganho_total_mes",
+    "create_tratamento",
+    "update_tratamento",
+    "deletar_tratamento",
     "update_consulta",
     "update_orcamento_por_consulta",
 ]
