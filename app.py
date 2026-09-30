@@ -7,7 +7,7 @@ from database.consultas import buscar_consulta_Atual
 from database.contexto import definir_usuario
 from database.sessao import carregar_sessao, limpar_sessao
 from database.usuarios import get_user_by_id
-from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes
+from views import agenda_Semanal, consultas, debug, faltantes, orcamento, pacientes, tratamentos
 from views.login import mostrar as mostrar_login
 from views.PopUpComparecimento import mostrar as mostrar_popup_comparecimento
 
@@ -98,6 +98,7 @@ class App(ctk.CTk):
         itens = [
             ("👥  Pacientes", self.mostrar_pacientes),
             ("💰  Orçamento", self.mostrar_orcamento),
+            ("💉  Tratamentos", self.mostrar_tratamentos),
             ("📅  Agenda", self.mostrar_agenda_semanal),
             ("👥  Faltantes", self.mostrar_faltantes),
             ("🐞  Debug", self.mostrar_debug),
@@ -243,6 +244,10 @@ class App(ctk.CTk):
     def mostrar_orcamento(self):
         self.limpar_frame()
         orcamento.mostrar(self.main_frame)
+
+    def mostrar_tratamentos(self):
+        self.limpar_frame()
+        tratamentos.mostrar(self.main_frame)
 
     def mostrar_debug(self):
         self.limpar_frame()
