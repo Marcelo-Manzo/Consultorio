@@ -448,7 +448,7 @@ def mostrar(parent):
         # tk.Label puro (fundo = cor do card): o CTkLabel desenha um canvas interno que
         # aparecia como uma faixa clara ("rebarba") sob o texto em cards baixos.
         tk.Label(
-            card, text=f"{hora}  {c['nome']}", font=("Segoe UI", 14, "bold"),
+            card, text=f"{hora}  {c['nome'].title()}", font=("Segoe UI", 14, "bold"),
             fg="#ffffff", bg=cor, bd=0, highlightthickness=0, padx=0, pady=0,
         ).pack(anchor="w", padx=7, pady=(2, 0))
 
