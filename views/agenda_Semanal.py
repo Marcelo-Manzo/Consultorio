@@ -16,6 +16,7 @@ from database.consultas import (
 )
 from database.orcamento import criar_orcamento, update_orcamento_por_consulta
 from database.pacientes import buscar_paciente_por_nome
+from views.scrollbar import ScrollbarLeve, retangulo_arredondado
 
 # ====================================================================================
 # TELA: Agenda Semanal (estilo Google Agenda / Microsoft Teams)
@@ -50,6 +51,7 @@ HORA_INICIO = 7      # a grade começa às 07:00
 HORA_FIM = 20        # e termina às 20:00
 ALTURA_GRID = (HORA_FIM - HORA_INICIO) * PX_HORA
 ALTURA_MIN_TRATAMENTO = 48  # abaixo disso o 2º label (tratamento) não cabe no card
+_CACHE_TTL = 25  # segundos de cache da "próxima consulta" (o relógio atualiza a cada 30s)
 RAIO_LINHA_AGORA = 5         # raio da bolinha no início da linha vermelha do "agora"
 COR_COLUNA_HOJE = "#22314d"  # fundo da coluna do dia atual (usado atrás da bolinha)
 
@@ -57,6 +59,30 @@ COR_COLUNA_HOJE = "#22314d"  # fundo da coluna do dia atual (usado atrás da bol
 def _altura_grid(canvas):
     """Altura do grid: estica para cobrir toda a altura disponível da tela."""
     return max(canvas.winfo_height(), ALTURA_GRID)
+
+
+def _cor_de_fundo(widget):
+    """Cor de fundo efetiva de um widget CTk (percorre os pais, como o próprio CTk faz)."""
+    try:
+        return widget._detect_color_of_master()
+    except Exception:
+        return "#1e1f22"
+
+
+def _dia_para_celula(dia, desloc):
+    """Dia do mês -> (coluna, linha) da grade do mini-calendário. `desloc` = weekday do 1º."""
+    return (dia - 1 + desloc) % 7, (dia - 1 + desloc) // 7
+
+
+def _dia_da_celula(coluna, linha, desloc):
+    """(coluna, linha) da grade -> dia do mês (0 quando a célula é do mês anterior)."""
+    return linha * 7 + coluna - desloc + 1
+
+
+def _dias_no_mes(ano, mes):
+    """Quantidade de dias do mês (28, 29, 30 ou 31)."""
+    proximo = date(ano + (mes == 12), mes % 12 + 1, 1)
+    return (proximo - date(ano, mes, 1)).days
 
 PALETA = ["#1a73e8", "#33b679", "#f4511e", "#8e24aa", "#039be5", "#e91e63", "#c0ca33", "#5f6368"]
 COR_FUNDO = "#2b2d31"
@@ -118,9 +144,19 @@ def mostrar(parent):
     _inicializar_estado()
 
     refs = {"canvas": None, "lab_dias": [], "titulo": None, "mini_container": None, "prox_container": None,
-            "overlay_agora": None, "ponto_agora": None}
-    itens_cards = {}  # consulta_id -> [item no canvas, widget do card] — reaproveita cards entre redraws
+            "overlay_agora": None, "ponto_agora": None, "mini_canvas": None, "lab_mes": None,
+            "prox_labels": {}}
+    # Reaproveita os cards entre redraws. A geometria fica guardada em Python para não
+    # precisar perguntar ao canvas (coords/itemcget) a cada redraw — são ~3 chamadas Tcl
+    # por card e o redraw roda a cada resize/granularidade.
+    itens_cards = {}  # consulta_id -> [item no canvas, widget do card, (x, y, larg, altu)]
     cache_consultas = {"seg": None, "consultas": []}  # evita reconsultar o banco a cada redraw
+    _cache_proxima = {"p": None, "em": None}  # countdown: mesma ideia para proxima_consulta()
+
+    def invalidar_cache():
+        """Chamado depois de criar/editar/excluir consulta: força nova leitura do banco."""
+        cache_consultas["seg"] = None
+        _cache_proxima["p"] = None
     _cfg_redraw = {"pendente": None, "ult_tam": (0, 0)}  # debounce do evento <Configure>
     _mais = {"data": None, "hora": None, "ult": None, "abri_em": 0}  # botão "+" de hover
 
@@ -206,7 +242,7 @@ def mostrar(parent):
                 return
 
             frame_criar_consulta.destroy()
-            cache_consultas["seg"] = None
+            invalidar_cache()
             renderizar()
 
         def buscar_paciente():
@@ -508,7 +544,7 @@ def mostrar(parent):
                 return
 
             frame_editar_consulta.destroy()
-            cache_consultas["seg"] = None
+            invalidar_cache()
             renderizar()
 
         def excluir_consulta_seguro():
@@ -517,7 +553,7 @@ def mostrar(parent):
             except Exception:
                 pass
             frame_editar_consulta.destroy()
-            cache_consultas["seg"] = None
+            invalidar_cache()
             renderizar()
 
         linha_botoes = ctk.CTkFrame(frame_editar_consulta, fg_color="transparent")
@@ -607,14 +643,12 @@ def mostrar(parent):
         A bolinha da linha do "agora" fica em cima de DUAS cores (metade na coluna de
         hoje, metade na coluna anterior), então ela é pintada com uma cor por metade —
         assim o widget quadrado fica invisível e sobra só o círculo.
+
+        Usa a geometria guardada em Python (nenhuma chamada Tcl por card).
         """
-        canvas = refs["canvas"]
-        for item in itens_cards.values():
-            x, y = canvas.coords(item[0])
-            larg = float(canvas.itemcget(item[0], "width"))
-            altu = float(canvas.itemcget(item[0], "height"))
+        for _item, card, (x, y, larg, altu) in itens_cards.values():
             if x <= cx <= x + larg and y <= cy <= y + altu:
-                return item[1]._cor_efetiva
+                return card._cor_efetiva
         if x0 <= cx <= x0 + day_w and 0 <= cy <= alt:
             return COR_COLUNA_HOJE
         return COR_FUNDO
@@ -718,17 +752,21 @@ def mostrar(parent):
                 larg, altu = day_w - 4, h_card
                 passou = _consulta_passou(c, agora)
                 chave = c["consulta_id"]
+                geom = (x, y, larg, altu)
                 item = itens_cards.get(chave)
                 if item is None:
                     card = criar_card_consulta(c, idx, passou)
                     novo_item = canvas.create_window(
                         x, y, anchor="nw", window=card, width=larg, height=altu, tags="cards"
                     )
-                    itens_cards[chave] = [novo_item, card]
+                    itens_cards[chave] = [novo_item, card, geom]
                     _ajustar_card(card, altu)
                 else:
-                    canvas.coords(item[0], x, y)
-                    canvas.itemconfigure(item[0], width=larg, height=altu)
+                    # Só fala com o canvas quando a geometria mudou de fato
+                    if item[2] != geom:
+                        item[2] = geom
+                        canvas.coords(item[0], x, y)
+                        canvas.itemconfigure(item[0], width=larg, height=altu)
                     _ajustar_card(item[1], altu)
                     # Repinta quando a consulta termina enquanto a tela está aberta
                     if item[1]._passou != passou:
@@ -738,7 +776,7 @@ def mostrar(parent):
 
         # Remove cards de consultas que saíram da semana exibida
         for chave in [k for k in itens_cards if k not in presentes]:
-            item, card = itens_cards.pop(chave)
+            item, card = itens_cards.pop(chave)[0:2]
             canvas.delete(item)
             card.destroy()
 
@@ -890,87 +928,107 @@ def mostrar(parent):
         abrir_janela_novo_agendamento(data.strftime("%Y-%m-%d"), hora)
 
     # ==================== MINI-CALENDÁRIO MENSAL ====================
+    # O calendário mensal é desenhado num único canvas (antes eram 38 widgets CTk:
+    # 7 rótulos + 31 botões, recriados a cada renderizar). Cada widget CTk tem custo de
+    # criação E de redraw, então trocar de semana/mês arrastava a navegação inteira.
+
+    MINI_PITCH_W = 32   # 30px de célula + 1 de cada lado (como o padx=1 do grid antigo)
+    MINI_PITCH_H = 26   # 24px de célula + 1 de cada lado (pady=1)
+    MINI_CEL_W = 30
+    MINI_CEL_H = 24
+    MINI_CABECALHO_H = 20
+
+    def _clique_mini(evento):
+        """Clique no canvas do mini-calendário: escolhe o dia."""
+        col = int(evento.x // MINI_PITCH_W)
+        linha = int((evento.y - MINI_CABECALHO_H) // MINI_PITCH_H)  # 0 = primeira semana
+        if not 0 <= col <= 6 or linha < 0:
+            return
+        dia = _dia_da_celula(col, linha, primeiro_do_mes().weekday())
+        if dia < 1:
+            return
+        _escolher_dia(dia)
+
+    def primeiro_do_mes():
+        m = estado["mes_visivel"]
+        return date(m.year, m.month, 1)
 
     def renderizar_mini_calendario():
-        ct = refs["mini_container"]
-        for w in ct.winfo_children():
-            w.destroy()
-
         m = estado["mes_visivel"]  # date do 1º dia do mês
+        refs["lab_mes"].configure(text=f"{MESES[m.month - 1]} {m.year}")
 
-        topo = ctk.CTkFrame(ct, fg_color="transparent")
-        topo.pack(fill="x", padx=4, pady=(6, 2))
+        canvas_mini = refs["mini_canvas"]
+        canvas_mini.delete("tudo")
 
-        ctk.CTkButton(
-            topo, text="‹", width=26, height=24, corner_radius=6, fg_color="transparent",
-            hover_color=COR_HOVER, text_color="#dadce0", font=("Segoe UI", 15, "bold"),
-            command=lambda: _mover_mes(-1),
-        ).pack(side="left")
-
-        ctk.CTkLabel(
-            topo, text=f"{MESES[m.month - 1]} {m.year}", font=("Segoe UI", 12, "bold"), text_color="#e8eaed"
-        ).pack(side="left", expand=True)
-
-        ctk.CTkButton(
-            topo, text="›", width=26, height=24, corner_radius=6, fg_color="transparent",
-            hover_color=COR_HOVER, text_color="#dadce0", font=("Segoe UI", 15, "bold"),
-            command=lambda: _mover_mes(1),
-        ).pack(side="left")
-
-        grade = ctk.CTkFrame(ct, fg_color="transparent")
-        grade.pack(fill="x", padx=4, pady=(0, 6))
-
+        # Cabeçalho dos dias da semana
         for col, nome in enumerate(CABECALHO_CALENDARIO):
-            ctk.CTkLabel(grade, text=nome, width=30, height=20, font=("Segoe UI", 9), text_color="#8f959e").grid(
-                row=0, column=col, padx=1
+            canvas_mini.create_text(
+                col * MINI_PITCH_W + MINI_PITCH_W / 2, MINI_CABECALHO_H / 2, text=nome,
+                fill="#8f959e", font=("Segoe UI", 9), tags="tudo",
             )
 
-        primeiro = date(m.year, m.month, 1)
-        desloc = primeiro.weekday()  # 0 = segunda
         hoje = datetime.now().date()
         sel = estado["data_selecionada"]
+        desloc = primeiro_do_mes().weekday()  # 0 = segunda
+        max_dia = _dias_no_mes(m.year, m.month)
 
-        for d in range(1, 32):
-            try:
-                dt = date(m.year, m.month, d)
-            except ValueError:
-                break
-            coluna = (desloc + d - 1) % 7
-            linha = 1 + (desloc + d - 1) // 7
+        for d in range(1, max_dia + 1):
+            dt = date(m.year, m.month, d)
+            coluna, linha = _dia_para_celula(d, desloc)
+            x = coluna * MINI_PITCH_W + (MINI_PITCH_W - MINI_CEL_W) / 2
+            y = MINI_CABECALHO_H + linha * MINI_PITCH_H + (MINI_PITCH_H - MINI_CEL_H) / 2
 
             if dt == hoje:
-                fg_, tx = COR_ACCENT, "#ffffff"
+                cor_fundo, cor_texto = COR_ACCENT, "#ffffff"
             elif dt == sel:
-                fg_, tx = "#3b4a63", "#e8eaed"
+                cor_fundo, cor_texto = "#3b4a63", "#e8eaed"
             else:
-                fg_, tx = "transparent", "#c6cbd1"
+                cor_fundo, cor_texto = None, "#c6cbd1"
 
-            ctk.CTkButton(
-                grade, text=str(d), width=30, height=24, corner_radius=6, fg_color=fg_, hover_color=COR_HOVER,
-                text_color=tx, font=("Segoe UI", 10, "bold"), command=lambda dd=d: _escolher_dia(dd),
-            ).grid(row=linha, column=coluna, padx=1, pady=1)
+            if cor_fundo:
+                retangulo_arredondado(
+                    canvas_mini, x, y, x + MINI_CEL_W, y + MINI_CEL_H, 6,
+                    fill=cor_fundo, outline="", tags="tudo",
+                )
+            canvas_mini.create_text(
+                x + MINI_CEL_W / 2, y + MINI_CEL_H / 2, text=str(d), fill=cor_texto,
+                font=("Segoe UI", 10, "bold"), tags="tudo",
+            )
 
     # ==================== PRÓXIMA CONSULTA (COUNTDOWN) ====================
 
-    def atualizar_proxima():
+    def atualizar_proxima(forcar_consulta=False):
+        """Conta regressiva da próxima consulta.
+
+        Os 3 rótulos são criados uma vez e só reconfigurados: recriá-los a cada 30s
+        custava caro (3 widgets CTk + flush de idle). A consulta também é cacheada por
+        _CACHE_TTL — sem isso, cada navegação de semana esperava a latência do banco.
+        """
         ct = refs["prox_container"]
         if not ct.winfo_exists():
             return
-        for w in ct.winfo_children():
-            w.destroy()
 
-        try:
-            p = proxima_consulta(datetime.now())
-        except Exception:
-            p = None
+        agora = datetime.now()
+        cache = _cache_proxima
+        if not forcar_consulta and cache["p"] is not None and (agora - cache["em"]).total_seconds() < _CACHE_TTL:
+            p = cache["p"]
+        else:
+            try:
+                p = proxima_consulta(agora)
+            except Exception:
+                p = None
+            cache["p"] = p
+            cache["em"] = agora
 
+        labels = refs["prox_labels"]
         if not p:
-            ctk.CTkLabel(ct, text="Nenhuma consulta futura", font=("Segoe UI", 11), text_color="#9aa0a6").pack(
-                padx=12, pady=16
-            )
+            labels["vazio"].pack(padx=12, pady=16)
+            for chave in ("tempo", "nome", "detalhe"):
+                labels[chave].pack_forget()
             return
 
-        segs = int((p["data"] - datetime.now()).total_seconds())
+        labels["vazio"].pack_forget()
+        segs = int((p["data"] - agora).total_seconds())
         if segs <= 0:
             texto = "acontecendo agora"
         else:
@@ -985,12 +1043,14 @@ def mostrar(parent):
             partes.append(f"{minutos}min")
             texto = "em " + " ".join(partes)
 
-        ctk.CTkLabel(ct, text=texto, font=("Segoe UI", 20, "bold"), text_color="#8ab4f8").pack(padx=12, pady=(12, 2))
-        ctk.CTkLabel(ct, text=p["nome"].title(), font=("Segoe UI", 13, "bold"), text_color="#e8eaed").pack(padx=12)
-        ctk.CTkLabel(
-            ct, text=f"{p['tratamento']}  •  {p['data'].strftime('%d/%m  %H:%M')}",
-            font=("Segoe UI", 10), text_color="#9aa0a6",
-        ).pack(padx=12, pady=(0, 12))
+        for chave, texto_item in (
+            ("tempo", texto),
+            ("nome", p["nome"].title()),
+            ("detalhe", f"{p['tratamento']}  •  {p['data'].strftime('%d/%m  %H:%M')}"),
+        ):
+            lbl = labels[chave]
+            lbl.configure(text=texto_item)
+            lbl.pack(padx=12, pady={"tempo": (12, 2), "nome": 0, "detalhe": (0, 12)}[chave])
 
     def loop_proxima():
         if not parent.winfo_exists() or _dono_relogio["owner"] != seq:
@@ -1097,6 +1157,32 @@ def mostrar(parent):
     mini_container.pack(fill="x", padx=6, pady=(0, 4))
     refs["mini_container"] = mini_container
 
+    mini_topo = ctk.CTkFrame(mini_container, fg_color="transparent")
+    mini_topo.pack(fill="x", padx=4, pady=(6, 2))
+    ctk.CTkButton(
+        mini_topo, text="‹", width=26, height=24, corner_radius=6, fg_color="transparent",
+        hover_color=COR_HOVER, text_color="#dadce0", font=("Segoe UI", 15, "bold"),
+        command=lambda: _mover_mes(-1),
+    ).pack(side="left")
+    lab_mes = ctk.CTkLabel(
+        mini_topo, text="", font=("Segoe UI", 12, "bold"), text_color="#e8eaed"
+    )
+    lab_mes.pack(side="left", expand=True)
+    ctk.CTkButton(
+        mini_topo, text="›", width=26, height=24, corner_radius=6, fg_color="transparent",
+        hover_color=COR_HOVER, text_color="#dadce0", font=("Segoe UI", 15, "bold"),
+        command=lambda: _mover_mes(1),
+    ).pack(side="left")
+    refs["lab_mes"] = lab_mes
+
+    mini_canvas = tk.Canvas(
+        mini_container, bg=COR_PAINEL, highlightthickness=0, bd=0,
+        height=MINI_CABECALHO_H + 6 * MINI_PITCH_H,
+    )
+    mini_canvas.pack(fill="x", padx=4, pady=(0, 6))
+    mini_canvas.bind("<Button-1>", _clique_mini)
+    refs["mini_canvas"] = mini_canvas
+
     ctk.CTkLabel(
         painel_esq, text="⏱ Próxima consulta", font=("Segoe UI", 13, "bold"), text_color="#e8eaed"
     ).pack(anchor="w", padx=12, pady=(16, 4))
@@ -1106,6 +1192,19 @@ def mostrar(parent):
     )
     prox_container.pack(fill="x", padx=12, pady=(0, 12))
     refs["prox_container"] = prox_container
+
+    # Rótulos fixos (reconfigurados, nunca recriados) — ver atualizar_proxima()
+    prox_labels = {
+        "vazio": ctk.CTkLabel(
+            prox_container, text="Nenhuma consulta futura", font=("Segoe UI", 11), text_color="#9aa0a6"
+        ),
+        "tempo": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 20, "bold"), text_color="#8ab4f8"),
+        "nome": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 13, "bold"), text_color="#e8eaed"),
+        "detalhe": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 10), text_color="#9aa0a6"),
+    }
+    for lbl in (prox_labels["vazio"], prox_labels["tempo"], prox_labels["nome"], prox_labels["detalhe"]):
+        lbl.pack_forget()
+    refs["prox_labels"] = prox_labels
 
     # ---- painel direito (grade semanal) ----
     painel_dir = ctk.CTkFrame(split, fg_color="transparent")
@@ -1143,7 +1242,9 @@ def mostrar(parent):
     corpo.pack(fill="both", expand=True)
 
     canvas = CTkCanvas(corpo, bg=COR_FUNDO, highlightthickness=0, bd=0)
-    scrollbar = ctk.CTkScrollbar(corpo, command=canvas.yview)
+    # Scrollbar leve (tk puro): o CTkScrollbar força update_idletasks() a cada
+    # yscrollcommand e travava o arrasto da janela (ver views/scrollbar.py).
+    scrollbar = ScrollbarLeve(corpo, command=canvas.yview, cor_fundo=_cor_de_fundo(corpo))
     canvas.configure(yscrollcommand=scrollbar.set)
 
     scrollbar.pack(side="right", fill="y")

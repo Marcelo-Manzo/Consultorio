@@ -1,6 +1,16 @@
 from datetime import datetime, timedelta
 
-from views.agenda_Semanal import COR_FUNDO, _altura_card, _conflita, _consulta_passou, _escurecer
+from views.agenda_Semanal import (
+    COR_FUNDO,
+    _altura_card,
+    _conflita,
+    _consulta_passou,
+    _dia_da_celula,
+    _dia_para_celula,
+    _dias_no_mes,
+    _escurecer,
+)
+from views.scrollbar import faixa_polegar, fracao_por_pixel
 
 PX_HORA = 54
 
@@ -119,3 +129,78 @@ def test_escurecer_puxa_pro_fundo_da_grade():
 
 def test_escurecer_cor_igual_ao_fundo_nao_muda():
     assert _escurecer(COR_FUNDO) == COR_FUNDO
+
+
+# ==================== MINI-CALENDÁRIO (grade desenhada em canvas) ====================
+
+
+def test_dia_para_celula_comeca_na_segunda():
+    # 01/09/2026 é uma terça (weekday 1) -> ocupa a coluna 1
+    assert _dia_para_celula(1, 1) == (1, 0)
+
+
+def test_dia_para_celula_vira_a_linha_no_fim_da_semana():
+    assert _dia_para_celula(6, 1) == (6, 0)
+    assert _dia_para_celula(7, 1) == (0, 1)
+
+
+def test_dia_da_celula_e_o_inverso_de_dia_para_celula():
+    for dia in (1, 5, 7, 8, 14, 27, 31):
+        col, linha = _dia_para_celula(dia, 1)
+        assert _dia_da_celula(col, linha, 1) == dia
+
+
+def test_dia_da_celula_antes_do_primeiro_dia_da_zero():
+    # célula antes do dia 1 pertence ao mês anterior
+    assert _dia_da_celula(0, 0, 1) == 0
+    assert _dia_da_celula(0, 0, 0) == 1
+
+
+def test_dias_no_mes():
+    assert _dias_no_mes(2026, 1) == 31
+    assert _dias_no_mes(2026, 2) == 28
+    assert _dias_no_mes(2028, 2) == 29  # ano bissexto
+    assert _dias_no_mes(2026, 4) == 30
+    assert _dias_no_mes(2026, 12) == 31
+
+
+# ==================== SCROLLBAR LEVE ====================
+
+
+def test_polegar_some_sem_rolagem():
+    assert faixa_polegar(0.0, 1.0, 600) is None
+
+
+def test_polegar_ocupa_a_proporcao_da_visao():
+    y0, y1 = faixa_polegar(0.0, 0.5, 600)
+    assert (y0, y1) == (0.0, 300.0)
+
+
+def test_polegar_respeita_o_tamanho_minimo():
+    # 1% de 2000px = 20px < mínimo de 26 -> cresce para o mínimo
+    y0, y1 = faixa_polegar(0.5, 0.51, 2000)
+    assert y1 - y0 == 26
+    assert y0 == 1000.0
+
+
+def test_polegar_nao_sai_dos_limites():
+    for primeiro, ultimo in ((0.0, 0.99), (0.99, 1.0), (0.98, 1.0), (0.001, 0.002)):
+        y0, y1 = faixa_polegar(primeiro, ultimo, 300)
+        assert 0 <= y0 < y1 <= 300
+
+
+def test_arrastar_o_polegar_o_deixa_onde_soltei():
+    # O canvas aplica moveto(fracao) -> visao = fracao * (1 - fração visível).
+    # O polegar tem que terminar exatamente onde o mouse soltou.
+    altura, tam = 600, 100
+    visivel = tam / altura
+    for y_centro in (100.0, 300.0, 500.0):
+        fracao = fracao_por_pixel(y_centro, altura, tam)
+        visao = fracao * (1 - visivel)
+        y0, y1 = faixa_polegar(visao, visao + visivel, altura)
+        assert abs((y0 + y1) / 2 - y_centro) < 1e-6
+
+
+def test_arrastar_fora_dos_limites_e_limitado():
+    assert fracao_por_pixel(-500, 600, 100) == 0.0
+    assert fracao_por_pixel(5000, 600, 100) == 1.0
