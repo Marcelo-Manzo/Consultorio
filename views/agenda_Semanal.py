@@ -62,11 +62,19 @@ def _altura_grid(canvas):
 
 
 def _cor_de_fundo(widget):
-    """Cor de fundo efetiva de um widget CTk (percorre os pais, como o próprio CTk faz)."""
+    """Cor de fundo efetiva de um widget CTk (percorre os pais, como o próprio CTk faz).
+
+    O CTk devolve uma tupla (claro, escuro) quando o fg_color do pai é par;
+    para o tk puro é preciso escolher a cor do modo de aparência atual.
+    """
     try:
-        return widget._detect_color_of_master()
+        cor = widget._detect_color_of_master()
     except Exception:
-        return "#1e1f22"
+        cor = None
+    if isinstance(cor, (tuple, list)):
+        indice = 1 if ctk.get_appearance_mode() == "Dark" else 0
+        cor = cor[indice] if len(cor) > indice else cor[0]
+    return cor if isinstance(cor, str) and cor.strip() else "#1e1f22"
 
 
 def _dia_para_celula(dia, desloc):

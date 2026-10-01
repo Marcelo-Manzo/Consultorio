@@ -11,22 +11,46 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
-# Pool de conexões otimizado para banco remoto (Supabase):
-# - pool_recycle: força renovação antes do servidor fechar conexões (evita "connection closed")
+
+def _adaptar_url(url):
+    """Troca o driver do Postgres para pg8000 (100% Python).
+
+    O psycopg2-binary embarca DLLs sem assinatura digital (libpq, libssl,
+    libcrypto) e o Smart App Control do Windows 11 bloqueia o carregamento
+    delas ("DLL load failed while importing _psycopg"). O pg8000 não usa
+    nenhuma DLL nativa, então funciona com essa proteção ligada.
+    """
+    for prefix in ("postgresql+psycopg2", "postgresql+pg8000", "postgres", "postgresql"):
+        if url.startswith(f"{prefix}://"):
+            return "postgresql+pg8000://" + url[len(prefix) + 3:]
+    return url
+
+
+DATABASE_URL_ADAPTADA = _adaptar_url(DATABASE_URL)
+
+# Pool de conexões otimizado para banco remoto (Supabase em us-west-2, ~300ms de RTT):
+# - AUTOCOMMIT: sem isso toda leitura pagava BEGIN + SELECT + ROLLBACK (3 ida-e-volta).
+#   Nenhuma função do app grava mais de uma linha por transação, então autocommit é
+#   seguro e corta a leitura pela metade (medido: ~3,4s -> ~1,7s por chamada).
+# - pre_ping LIGADO: o Supabase fecha conexão ociosa; o ping troca a conexão morta em
+#   vez de estourar "connection closed" na tela. Custa ~1 ida-e-volta, que a remoção
+#   do BEGIN/ROLLBACK já pagou.
+# - pool_recycle: 60s era desastroso, cada renovação custava ~2,2s de TLS + autenticação.
 # - pool_size pequeno: app desktop single-user, não precisa de muitas conexões
-# - pre_ping DESLIGADO: cada query custaria +1 round-trip (~300ms) na nuvem
 connect_args = {}
-if DATABASE_URL.startswith("postgresql"):
-    connect_args = {"connect_timeout": 15}
-elif DATABASE_URL.startswith("mssql"):
+if DATABASE_URL_ADAPTADA.startswith("postgresql"):
+    # pg8000 usa "timeout"; psycopg2 usaria "connect_timeout"
+    connect_args = {"timeout": 15}
+elif DATABASE_URL_ADAPTADA.startswith("mssql"):
     connect_args = {"timeout": 15}
 
 engine = create_engine(
-    DATABASE_URL,
+    DATABASE_URL_ADAPTADA,
     pool_size=3,
     max_overflow=2,
-    pool_pre_ping=False,
-    pool_recycle=60,
+    pool_pre_ping=True,
+    pool_recycle=1800,
+    isolation_level="AUTOCOMMIT",
     connect_args=connect_args,
 )
 SessionLocal = sessionmaker(bind=engine)
