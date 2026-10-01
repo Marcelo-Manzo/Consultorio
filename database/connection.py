@@ -28,13 +28,13 @@ def _adaptar_url(url):
 
 DATABASE_URL_ADAPTADA = _adaptar_url(DATABASE_URL)
 
-# Pool de conexões otimizado para banco remoto (Supabase em us-west-2, ~300ms de RTT):
+# Pool de conexões otimizado para banco remoto (Supabase em us-west-2, ~1s de RTT):
 # - AUTOCOMMIT: sem isso toda leitura pagava BEGIN + SELECT + ROLLBACK (3 ida-e-volta).
 #   Nenhuma função do app grava mais de uma linha por transação, então autocommit é
 #   seguro e corta a leitura pela metade (medido: ~3,4s -> ~1,7s por chamada).
-# - pre_ping LIGADO: o Supabase fecha conexão ociosa; o ping troca a conexão morta em
-#   vez de estourar "connection closed" na tela. Custa ~1 ida-e-volta, que a remoção
-#   do BEGIN/ROLLBACK já pagou.
+# - pre_ping DESLIGADO de propósito: ele custa 1 ida-e-volta em TODA consulta, ou seja
+#   dobrava o tempo de abrir qualquer tela. A troca da conexão morta é feita em get_db(),
+#   que só paga esse custo quando a conexão realmente caiu.
 # - pool_recycle: 60s era desastroso, cada renovação custava ~2,2s de TLS + autenticação.
 # - pool_size pequeno: app desktop single-user, não precisa de muitas conexões
 connect_args = {}
@@ -48,7 +48,7 @@ engine = create_engine(
     DATABASE_URL_ADAPTADA,
     pool_size=3,
     max_overflow=2,
-    pool_pre_ping=True,
+    pool_pre_ping=False,
     pool_recycle=1800,
     isolation_level="AUTOCOMMIT",
     connect_args=connect_args,

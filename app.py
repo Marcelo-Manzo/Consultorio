@@ -2,7 +2,9 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 import customtkinter as ctk
+from sqlalchemy.exc import InterfaceError, OperationalError
 
+from database.connection import engine
 from database.consultas import buscar_consulta_Atual
 from database.contexto import definir_usuario
 from database.sessao import carregar_sessao, limpar_sessao
@@ -225,33 +227,47 @@ class App(ctk.CTk):
         for widget in self.main_frame.winfo_children():
             widget.destroy()
 
+    def _abrir_tela(self, montar):
+        """Monta a tela e, se o banco estiver com a conexão morta, renova o pool e tenta de novo.
+
+        O Supabase fecha conexão ociosa e o pool_pre_ping foi desligado (custava uma
+        ida-e-volta de ~1s em toda tela). Descobrir a conexão morta no meio da tela
+        é ruim, então aqui resolvemos: nova tentativa, sem mexer em nada mais.
+        """
+        for tentativa in (1, 2):
+            self.limpar_frame()
+            try:
+                montar(self.main_frame)
+                return
+            except (OperationalError, InterfaceError):
+                if tentativa == 2:
+                    ctk.messagebox.showerror(
+                        "Banco de dados",
+                        "Não consegui falar com o banco de dados.\nTente novamente em instantes.",
+                    )
+                    return
+                engine.dispose()
+
     def mostrar_consultas(self):
-        self.limpar_frame()
-        consultas.mostrar(self.main_frame)
+        self._abrir_tela(consultas.mostrar)
 
     def mostrar_pacientes(self):
-        self.limpar_frame()
-        pacientes.mostrar(self.main_frame)
+        self._abrir_tela(pacientes.mostrar)
 
     def mostrar_agenda_semanal(self):
-        self.limpar_frame()
-        agenda_Semanal.mostrar(self.main_frame)
+        self._abrir_tela(agenda_Semanal.mostrar)
 
     def mostrar_faltantes(self):
-        self.limpar_frame()
-        faltantes.mostrar(self.main_frame)
+        self._abrir_tela(faltantes.mostrar)
 
     def mostrar_orcamento(self):
-        self.limpar_frame()
-        orcamento.mostrar(self.main_frame)
+        self._abrir_tela(orcamento.mostrar)
 
     def mostrar_tratamentos(self):
-        self.limpar_frame()
-        tratamentos.mostrar(self.main_frame)
+        self._abrir_tela(tratamentos.mostrar)
 
     def mostrar_debug(self):
-        self.limpar_frame()
-        debug.mostrar(self.main_frame)
+        self._abrir_tela(debug.mostrar)
 
     # ==================== CICLO DE VIDA DA SESSÃO (JANELA ÚNICA) ====================
 

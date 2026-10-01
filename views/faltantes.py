@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 
 import customtkinter as ctk
 
-from database.consultas import buscar_consulta_por_id_dict, criar_consulta, listar_faltas_data, marcar_comparecimento
+from database.consultas import buscar_consulta_por_id_dict, criar_consulta, listar_faltas_periodo, marcar_comparecimento
 
 # 0 semanal, 1 mensal.
 controle_semana = {"deslocamento": 0}
@@ -241,16 +241,21 @@ def mostrar(parent):
         dias_nomes = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira"]
         idx_geral = 0  # Controlador para alternar as cores das linhas de forma contínua
 
+        # Uma única query para a semana inteira (cada ida-e-volta ao Supabase custa ~1s)
+        try:
+            faltantes_semana = listar_faltas_periodo(inicio_semana.strftime("%Y-%m-%d"), len(dias_nomes))
+        except Exception:
+            faltantes_semana = []
+        por_dia = {}
+        for faltante in faltantes_semana:
+            por_dia.setdefault(faltante["data"].date(), []).append(faltante)
+
         # Varrer cada dia útil da semana selecionada
         for i, nome_dia in enumerate(dias_nomes):
             data_dia = inicio_semana + timedelta(days=i)
-            data_banco = data_dia.strftime("%Y-%m-%d")
 
-            # Busca as faltas correspondentes especificamente a esta data
-            try:
-                faltantes = listar_faltas_data(data_banco)
-            except Exception:
-                faltantes = []
+            # Falts já vieram agrupadas na query do período
+            faltantes = por_dia.get(data_dia.date(), [])
 
             # Se existirem faltas para este dia, desenhamos o divisor e os cards
             if faltantes:

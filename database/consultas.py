@@ -229,6 +229,39 @@ def listar_faltas_data(data):
         ]
 
 
+def listar_faltas_periodo(data_inicio, dias=5):
+    """Faltas de `dias` dias úteis a partir de data_inicio, em UMA query.
+
+    Mesma saída de listar_faltas_data, mas para o período inteiro: cada ida-e-volta
+    ao Supabase custa ~1s, então consultar a semana dia a dia deixava a tela lenta.
+    """
+    with get_db() as db:
+        inicio = datetime.strptime(data_inicio, "%Y-%m-%d") if isinstance(data_inicio, str) else data_inicio
+        fim = inicio + timedelta(days=dias)
+        resultados = (
+            db.query(Paciente, Consulta)
+            .join(Consulta, Consulta.paciente_id == Paciente.id)
+            .filter(
+                Consulta.compareceu == 2,
+                Consulta.data >= inicio,
+                Consulta.data < fim,
+                _filtro_usuario(),
+            )
+            .order_by(Consulta.data.desc())
+            .all()
+        )
+        return [
+            {
+                "nome": p.nome,
+                "tratamento": c.tratamento,
+                "data": c.data,
+                "id_consulta": c.id,
+                "id_paciente": c.paciente_id,
+            }
+            for p, c in resultados
+        ]
+
+
 def marcar_comparecimento(consulta_id, status=1):
     with get_db() as db:
         consulta = (

@@ -165,6 +165,7 @@ def mostrar(parent):
         """Chamado depois de criar/editar/excluir consulta: força nova leitura do banco."""
         cache_consultas["seg"] = None
         _cache_proxima["p"] = None
+        _cache_proxima["em"] = None  # sem isso o "não tem próxima" continuaria valendo
     _cfg_redraw = {"pendente": None, "ult_tam": (0, 0)}  # debounce do evento <Configure>
     _mais = {"data": None, "hora": None, "ult": None, "abri_em": 0}  # botão "+" de hover
 
@@ -1018,7 +1019,14 @@ def mostrar(parent):
 
         agora = datetime.now()
         cache = _cache_proxima
-        if not forcar_consulta and cache["p"] is not None and (agora - cache["em"]).total_seconds() < _CACHE_TTL:
+        # O carimbo "em" diz que JÁ consultamos. Não usar o resultado como condição:
+        # quando não há próxima consulta o resultado é None e o cache era ignorado,
+        # fazendo o app consultar o banco duas vezes a cada montagem da tela.
+        if (
+            not forcar_consulta
+            and cache["em"] is not None
+            and (agora - cache["em"]).total_seconds() < _CACHE_TTL
+        ):
             p = cache["p"]
         else:
             try:
