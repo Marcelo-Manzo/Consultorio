@@ -49,6 +49,132 @@ Os DADOS (as linhas: pacientes, consultas, orcamentos) sao do app. Alembic
 nao cadastra, nao apaga e nao copia registro nenhum.
 
 
+2.1 COMO ELE FUNCIONA POR DENTRO
+================================================================================
+
+A duvida mais comum: "ele monta um SQL e manda pro banco?"
+
+Quase isso. O arquivo de migration NAO contem SQL escrito. Ele contem CHAMADAS
+Python que descrevem o que deve mudar. Exemplo real do 0001_baseline.py:
+
+    op.create_table(
+        "Consultas",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("valor", sa.Numeric(precision=10, scale=2)),
+        sa.Column("duracao", sa.Integer(), server_default="30", nullable=False),
+    )
+
+Repare que nao existe CREATE TABLE escrito ali. O texto SQL que chega no
+Supabase e montado na hora, pelo SQLAlchemy, usando o dialeto do Postgres.
+
+O caminho completo de um comando:
+
+    alembic upgrade head
+      |
+      +- 1. le o alembic.ini e acha a pasta migrations/
+      |
+      +- 2. carrega o migrations/env.py
+      |     |- pega a URL do banco no .env (via database/connection.py)
+      |     |- abre UMA conexao com o Supabase
+      |
+      +- 3. pergunta ao banco: "em qual revisao voce esta?"
+      |     +- SELECT version_num FROM alembic_version
+      |
+      +- 4. descobre o caminho da revisao atual ate a "head"
+      |     +- le o arquivo .py da proxima revisao e chama upgrade()
+      |
+      +- 5. dentro de upgrade(), cada op.create_table() vira um objeto DDL
+      |
+      +- 6. o SQLAlchemy traduz esse objeto para SQL do Postgres
+      |     +- e aqui que sa.Integer() vira SERIAL
+      |
+      +- 7. o driver pg8000 envia o texto para o Supabase
+            +- BEGIN;  ... comandos ...  COMMIT;
+
+A prova de que o SQL e gerado, e nao escrito: o arquivo pede
+sa.Column("id", sa.Integer()) e o Postgres recebeu "id SERIAL NOT NULL".
+O SQLAlchemy fez essa troca. O mesmo arquivo em outro banco geraria outra
+coisa:
+
+    PostgreSQL   ->  SERIAL
+    SQLite       ->  INTEGER + AUTOINCREMENT
+    SQL Server   ->  INT IDENTITY
+
+E por isso que a migration e codigo e nao texto: ela sabe se adaptar ao banco.
+Um .txt com SERIAL colado no Supabase quebraria se voce trocasse de
+fornecedor. (Este projeto tambem roda os testes em SQLite, aproveitando
+exatamente essa adaptability - veja os 146 testes.)
+
+ONDE EXISTE SQL ESCRITO A MAO
+Existe um lugar so, e por necessidade: a revisao 0002_rls.py usa op.execute().
+
+    op.execute(f'ALTER TABLE "{tabela}" ENABLE ROW LEVEL SECURITY')
+
+O RLS (seguranca de linha) nao tem representacao no SQLAlchemy - nao existe
+"construtor" para ele. Entao ali o Alembic e obrigado a passar texto puro.
+E a valvula de escape: praticamente tudo e gerado, e o que nao tem construcao
+automatica vira SQL explicito.
+
+A TRANSAÇÃO (BEGIN / COMMIT)
+Repare no SQL gerado: abre BEGIN; e fecha COMMIT;. Tudo numa transacao so.
+O Postgres permite DDL transacional, entao se a 4a tabela de 5 falhar,
+NADA e criado: volta tudo como estava. No SQL Editor do Supabase cada comando
+e solto; um erro no meio deixa o banco pela metade, que e o tipo de sujeira
+que nao se enxerga depois.
+
+A MEMORIA (alembic_version)
+No SQL gerado aparecem duas linhas de controle:
+
+    INSERT INTO alembic_version (version_num) VALUES ('0001_baseline')
+    UPDATE alembic_version SET version_num='0002_rls' ...
+
+O Alembic grava a revisao no proprio banco a cada passo. E esse controle que
+torna o upgrade seguro para repetir: rodando de novo, ele le '0002_rls', ve
+que a head tambem e '0002_rls', e nao faz nada.
+
+O CAMINHO INVERSO (--autogenerate)
+Ate aqui o fluxo foi models -> SQL -> banco. O --autogenerate faz o oposto:
+
+    database/models.py
+         |
+         +- 1. le o que o BANCO tem (information_schema)
+         +- 2. le o que o CODIGO tem (Base.metadata, dos models)
+         +- 3. compara os dois
+         +- 4. escreve a diferenca num arquivo .py novo
+
+Ou seja: ele LE O BANCO para descobrir o que falta e escreve o op.add_column()
+por voce. (Por isso ele precisa do banco no ar: sem banco nao ha com o que
+comparar.)
+
+VER SEM APLICAR NADA
+Para ver o SQL que SERIA executado, sem conectar no banco:
+
+    alembic upgrade head --sql
+
+Este comando e seguro e util: ele mostra exatamente o que o upgrade faria.
+Para ver os dois lados (subir e descer) sem risco nenhum:
+
+    alembic upgrade head --sql
+    alembic downgrade 0002_rls:base --sql
+
+E o SQL que o projeto gerou de verdade ao criar as tabelas (resumido):
+
+    CREATE TABLE "Usuarios" (
+        id SERIAL NOT NULL, nome VARCHAR(100) NOT NULL,
+        email VARCHAR(150) NOT NULL, senha_hash VARCHAR(255) NOT NULL,
+        PRIMARY KEY (id), UNIQUE (email)
+    );
+    CREATE TABLE "Consultas" (
+        id SERIAL NOT NULL, paciente_id INTEGER,
+        data TIMESTAMP WITHOUT TIME ZONE, valor NUMERIC(10, 2),
+        compareceu INTEGER DEFAULT 0, pago BOOLEAN DEFAULT false,
+        duracao INTEGER DEFAULT 30 NOT NULL, ...
+    );
+    CREATE INDEX idx_consultas_usuario ON "Consultas" (usuario_id, data);
+    ALTER TABLE "Consultas" ENABLE ROW LEVEL SECURITY;
+    ...
+
+
 3. ONDE ESTA TUDO ISSO NO PROJETO
 ================================================================================
 
@@ -211,4 +337,18 @@ Se o check reclamar, normalmente e uma destas situacoes:
   P: Preciso do Alembic para usar o app no dia a dia?
   R: Nao. So quando mudar o formato do banco. Para usar o app, e so abrir o
      python app.py normalmente.
+
+  P: O Alembic precisa do SQLAlchemy para funcionar?
+  R: Sim, e nao como opcao. O proprio pacote declara SQLAlchemy>=2.0 como
+     dependencia obrigatoria. Vale separar as tres pecas, porque elas fazem
+     coisas diferentes:
+        SQLAlchemy  -> o tradutor. Entende o schema e escreve o SQL do banco
+        pg8000      -> o telefone. Leva o texto ate o Supabase
+        Alembic     -> o contador. Lembra o que ja foi aplicado
+     E por isso que o Alembic depende do SQLAlchemy: o passo 6 da secao 2.1
+     (traduzir sa.Integer() em SERIAL) so existe porque o SQLAlchemy conhece os
+     dialetos. Sem ele o Alembic perderia a parte mais valiosa.
+     Nada de instalacao extra: sqlalchemy, pg8000 e alembic ja estao no
+     requirements.txt, e o Alembic roda no mesmo Python do app, usando o mesmo
+     engine (migrations/env.py importa de database/connection.py).
 ================================================================================
