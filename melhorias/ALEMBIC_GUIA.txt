@@ -1,0 +1,214 @@
+================================================================================
+  ALEMBIC - O QUE E, PARA QUE SERVE E COMO USAR
+================================================================================
+  Documento de referencia do Consultorio.
+  Complemento do migrations/README (que tem apenas os comandos).
+
+
+1. O PROBLEMA QUE EXISTIA ANTES
+================================================================================
+
+O formato do banco (as tabelas, colunas, tipos) era guardado num arquivo .txt
+chamado SQL_CREATE_TABLES.txt, com SQL escrito a mao.
+
+Para instalar num banco novo, o caminho era:
+    1. abrir o Supabase
+    2. abrir o SQL Editor
+    3. copiar o SQL do .txt
+    4. colar e rodar
+    5. torcer para nao ter erro de digitacao
+
+Problemas desse jeito:
+  - Se voce esquecesse de uma coluna, o app quebrava so depois, com uma
+    mensagem confusa do tipo "column does not exist".
+  - O arquivo ficou desatualizado de verdade: faltava a coluna usuario_id,
+    que e a que separa os dados de cada usuario no app. Quem copiasse aquele
+    .txt num banco novo ficaria com um banco incompleto.
+  - Nao tinha como saber o que mudou, nem quando, nem por que.
+  - Em outra maquina, tinha que repetir o trabalho do zero.
+
+
+2. O QUE E O ALEMBIC
+================================================================================
+
+E uma ferramenta que guarda o formato do banco DENTRO DO PROJETO, em codigo,
+e aplica as mudancas no banco com um comando.
+
+Em vez de um .txt com SQL solto, o schema passa a ter duas fontes:
+
+    database/models.py        -> como as tabelas sao (a verdade final)
+    migrations/versions/*.py  -> o historico do que ja foi aplicado
+
+O Alembic tambem grava no proprio banco uma tabelinha chamada
+alembic_version, dizendo em qual revisao aquele banco esta. E por isso que ele
+sabe o que ainda falta aplicar: se voce rodar de novo sem mudanca nenhuma,
+ele nao faz nada (nao duplica tabela, nao apaga dado).
+
+Importante: ele cuida so do FORMATO do banco (tabelas, colunas, indices).
+Os DADOS (as linhas: pacientes, consultas, orcamentos) sao do app. Alembic
+nao cadastra, nao apaga e nao copia registro nenhum.
+
+
+3. ONDE ESTA TUDO ISSO NO PROJETO
+================================================================================
+
+    alembic.ini                        configuracao geral
+    migrations/README                  passo a passo curto (so os comandos)
+    migrations/env.py                  ponte: pega a URL do banco do .env
+    migrations/script.py.mako          modelo dos arquivos de revisao
+    migrations/versions/0001_baseline.py
+                                       revisao 1: cria as 5 tabelas
+    migrations/versions/0002_rls.py
+                                       revisao 2: liga a seguranca (RLS)
+
+As tabelas tem nome com maiuscula, entao no SQL vao entre aspas:
+    "Usuarios"   "Pacientes"   "Consultas"   "Orcamentos"   "Tratamentos"
+
+Regra do projeto: o schema se muda em database/models.py. NUNCA editar tabela
+direto no SQL Editor do Supabase, senao banco e codigo ficam diferentes.
+
+
+4. OS COMANDOS
+================================================================================
+
+Todos rodam na raiz do projeto, com a venv ativa (.venv\Scripts\activate):
+
+    alembic upgrade head
+        Aplica no banco tudo que ainda falta. Cria as tabelas se o banco for
+        novo. Se ja esta em dia, nao faz nada. ESSE E O COMANDO SEGURO.
+
+    alembic current
+        Mostra em qual revisao o banco esta. Ex.: "0002_rls (head)".
+
+    alembic check
+        Compara o banco com os models e avisa se ha diferenca. Nao escreve
+        nada no banco. Serve para descobrir se alguem mexeu no banco na mao.
+
+    alembic history
+        Lista o historico de revisoes (o que foi criado e quando).
+
+    alembic revision --autogenerate -m "descricao"
+        Compara os models com o banco e gera o arquivo da mudanca.
+        NAO aplica no banco. Leia o arquivo gerado antes de seguir.
+
+    alembic downgrade -1
+        Desfaz a ultima revisao. CUIDADO: se a revisao criou uma tabela,
+        voltar um passo APAGA essa tabela e os dados que estavam nela.
+
+    alembic upgrade head --sql
+        So imprime o SQL que seria executado, sem conectar no banco.
+    alembic upgrade head --sql | alembic downgrade base --sql
+        Serve so para conferir os dois lados sem risco nenhum.
+
+
+5. QUANDO USAR CADA UM
+================================================================================
+
+  Banco novo (projeto recem-criado no Supabase)
+      1. colocar a DATABASE_URL do projeto novo no .env
+      2. conferir a regiao/host no painel do Supabase
+      3. alembic upgrade head      -> cria as 5 tabelas + RLS
+      4. abrir o app e criar o usuario pela tela de login
+
+  Banco antigo que JA tem as tabelas e nunca usou Alembic
+      alembic stamp head
+      -> so marca "este banco ja esta em dia". NAO cria tabela nenhuma.
+      Use quando o banco foi montado a mao e voce nao quer recriar.
+
+  Mudar o formato (adicionar coluna, criar indice, etc.)
+      ver secao 6 abaixo
+
+  Ficar de olho se tudo esta certo
+      alembic current  +  alembic check
+
+
+6. COMO MUDAR O FORMATO DO BANCO (EXEMPLO: ADICIONAR UMA COLUNA)
+================================================================================
+
+Exemplo real: voce quer um campo "observacao" na consulta.
+
+  Passo 1 - edite database/models.py, dentro de class Consulta:
+      observacao = Column(String(500))
+
+  Passo 2 - gere a revisao (ainda nao mexe no banco):
+      alembic revision --autogenerate -m "add observacao em consultas"
+
+  Passo 3 - ABRA o arquivo gerado em migrations/versions/ e leia. Deve ter um
+      op.add_column(). Se aparecer qualquer coisa estranha (drop de coluna,
+      mudanca de tipo que voce nao pediu), apague o arquivo e arrume o model.
+
+  Passo 4 - aplique:
+      alembic upgrade head
+
+  Passo 5 - confira:
+      alembic check      -> tem que responder "No new upgrade operations"
+
+Nesses 5 passos nao se abre o SQL Editor, nao se escreve SQL a mao e nao da
+para o banco e o codigo ficarem diferentes.
+
+Detalhe importante: o --autogenerate precisa que o banco esteja no ar para
+fazer a comparacao. Se o Supabase estiver fora do ar, a revisao teria de ser
+escrita a mao no arquivo gerado.
+
+
+7. COMO SABER SE TUDO ESTA CERTO
+================================================================================
+
+    alembic current   ->  deve mostrar 0002_rls (head)
+    alembic check     ->  deve mostrar "No new upgrade operations detected"
+
+Se o check reclamar, normalmente e uma destas situacoes:
+  - voce mudou models.py e ainda nao gerou/aplicou a revisao (o mais comum)
+  - voce editou uma tabela direto no SQL Editor do Supabase
+  - o .env aponta para outro projeto (ou a senha esta errada)
+
+
+8. O QUE O ALEMBIC NAO FAZ
+================================================================================
+
+  - Nao mexe nos seus dados. Ele so cria/altera tabelas.
+  - Nao e backup. Para backup, o caminho e o do proprio Supabase.
+  - Nao controla o login nem o filtro por usuario (usuario_id). Isso e o app.
+  - Nao controla o RLS sozinho: o RLS precisa de uma revisao propria porque o
+    Alembic nao enxerga isso. No projeto, quem liga o RLS e a revisao 0002_rls.
+  - Nao valida regra de negocio. Nenhum comando impede voce de criar schema
+    errado; ele so garante que banco e codigo batem entre si.
+
+
+9. CUIDADOS
+================================================================================
+
+  - upgrade head e seguro: cria o que falta, nunca apaga dado.
+  - downgrade APAGA. Nunca rode por curiosidade para "ver o que acontece".
+  - Para o Alembic, o usuario e o dono das tabelas (o app conecta como
+    postgres), entao as politicas de RLS do banco nao bloqueiam o app.
+  - O .env tem a senha do banco e nunca deve ir para o git. O migrations/ e o
+    alembic.ini DEVEM ir para o git (sao o historico do banco).
+  - Depois de mexer no schema, rode a suite de testes:
+        python -m pytest -q
+
+
+10. PERGUNTAS FREQUENTES
+================================================================================
+
+  P: Rodar "Criar tabelas" de novo apaga meu banco?
+  R: Nao. "upgrade head" so aplica o que falta. Se ja estiver em dia, ele
+     responde que nao ha nada a fazer e nao mexe em nada.
+
+  P: Posso trocar de projeto do Supabase (de regiao)?
+  R: Sim. Troque a DATABASE_URL no .env e rode "alembic upgrade head" no
+     projeto novo. Os dados NAO vem junto: migracao de dado e outra coisa
+     (o SQL Server antigo exportava com o script exportar_dados.py).
+
+  P: O Alembic roda sozinho quando o app abre?
+  R: Nao. Ele roda so quando voce chama um comando. O app nao mexe no formato
+     do banco em momento nenhum.
+
+  P: E se eu criar uma tabela na mao no Supabase e o app reclamar?
+  R: Provavelmente voce criou fora do models.py. O certo e remover a tabela e
+     refazer pelo caminho Alembic, para o codigo saber que ela existe.
+
+  P: Preciso do Alembic para usar o app no dia a dia?
+  R: Nao. So quando mudar o formato do banco. Para usar o app, e so abrir o
+     python app.py normalmente.
+================================================================================
