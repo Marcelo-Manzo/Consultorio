@@ -113,7 +113,7 @@ def test_deletar_tratamento_inexistente_nao_levanta(db_session):
 
 
 def _criar_usuario(db_session, nome="Outro"):
-    usuario = Usuario(nome=nome, email=f"{nome.lower()}@teste.com")
+    usuario = Usuario(nome=nome, email=f"{nome.lower()}@teste.com", senha_hash="hash-fake")
     db_session.add(usuario)
     db_session.commit()
     db_session.refresh(usuario)

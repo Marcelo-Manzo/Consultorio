@@ -137,7 +137,7 @@ def test_excluir_paciente_por_id(db_session, insert_paciente):
 
 
 def _criar_usuario(db_session, nome="Outro"):
-    u = Usuario(nome=nome, email=f"{nome.lower()}@teste.com")
+    u = Usuario(nome=nome, email=f"{nome.lower()}@teste.com", senha_hash="hash-fake")
     db_session.add(u)
     db_session.commit()
     db_session.refresh(u)

@@ -1,11 +1,13 @@
 sqlalchemy==2.0.51
 customtkinter==6.0.0
 pyodbc==5.3.0
-psycopg2-binary==2.9.13
+pg8000==1.31.5
+alembic==1.20.0
 reportlab==5.0.0
 validate-docbr==2.0.0
 python-dotenv==1.2.3
 keyring==25.7.0
+bcrypt==5.0.0
 
 # Dev dependencies
 ruff==0.16.5

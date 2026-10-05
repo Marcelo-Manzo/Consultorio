@@ -1,0 +1,35 @@
+Migracoes do banco (Alembic)
+============================
+
+O schema do Consultorio esta 100% em database/models.py. Nao existe mais script
+SQL para colar na mao: os arquivos .txt de schema foram aposentados.
+
+Comandos (a partir da raiz do projeto, com a venv ativa):
+
+    alembic upgrade head       aplica no banco do .env tudo que ainda falta
+    alembic current            mostra em qual revisao o banco esta
+    alembic check              confere se o banco esta igual aos models (sem escrever)
+    alembic downgrade -1       desfaz a ultima revisao aplicada
+
+Quando mudar uma coluna em database/models.py:
+
+    alembic revision --autogenerate -m "descricao da mudanca"
+
+    -> leia o arquivo gerado em migrations/versions/ antes de commitar
+    -> rode alembic upgrade head
+
+Banco novo (projeto recem-criado no Supabase):
+
+    1. coloque a DATABASE_URL no .env
+    2. alembic upgrade head      (cria as 5 tabelas + RLS)
+
+Banco que ja tem as tabelas e nunca usou Alembic:
+
+    alembic stamp head          (so marca a revisao; nao cria nem apaga nada)
+
+Revisoes
+--------
+
+0001_baseline  schema inicial: Usuarios, Pacientes, Consultas, Orcamentos,
+               Tratamentos (com usuario_id e os 4 indices idx_*_usuario)
+0002_rls       ENABLE ROW LEVEL SECURITY nas 5 tabelas

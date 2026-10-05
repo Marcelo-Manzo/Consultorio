@@ -32,7 +32,12 @@ def usuario_logado():
     usuario_atual().id, então todos os dados criados nos testes pertencem a
     esse usuário. Resetado ao fim do teste.
     """
-    usuario = models.Usuario(id=999999, nome="Usuário Teste", email="teste@teste.com")
+    usuario = models.Usuario(
+        id=999999,
+        nome="Usuário Teste",
+        email="teste@teste.com",
+        senha_hash="hash-fake",
+    )
     definir_usuario(usuario)
     yield usuario
     definir_usuario(None)
