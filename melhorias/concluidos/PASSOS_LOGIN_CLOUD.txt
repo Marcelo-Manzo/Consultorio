@@ -120,7 +120,6 @@ FASE 2: CLOUD (Supabase - gratis)
        senha: Sp7vbs0lJW20IAxj
     3. Menu Settings > Database -> copiar a connection string
        (formato: postgresql://postgres:[SENHA]@db.xxxx.supabase.co:5432/postgres)
-       postgresql://postgres:Sp7vbs0lJW20IAxj@db.olmgrbbmitbfmhnselbb.supabase.co:5432/postgres
 
 
 [x] Passo 8 - Criar as tabelas no Supabase
