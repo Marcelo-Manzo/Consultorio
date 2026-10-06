@@ -175,6 +175,73 @@ E o SQL que o projeto gerou de verdade ao criar as tabelas (resumido):
     ...
 
 
+2.2 O APP NAO USA TRANSACAO (AUTOCOMMIT) E O WARNING QUE APARECEU
+================================================================================
+
+A secao anterior mostrou um BEGIN e um COMMIT no SQL. Isso e do ALEMBIC, que
+abre a propria conexao (migrations/env.py) e roda cada revisao dentro de uma
+transacao de verdade: se a 4a tabela de 5 falhar, nada e criado.
+
+O APP e diferente. A engine do app (database/connection.py) nasce com
+isolation_level="AUTOCOMMIT": cada statement e confirmado pelo servidor na
+hora, sem BEGIN nem COMMIT. O motivo e o custo - o Supabase e remoto (RTT de
+~15 ms na regiao sa-east-1) e uma transacao obrigaria o app a pagar 2 ida-e-
+volta extras em CADA tela, so para ler.
+
+O QUE O WARNING ERA
+Com autocommit nao existe transacao aberta, mas o SQLAlchemy continua
+chamando o commit do driver a cada db.commit() (sao 18 lugares no app) e o
+pg8000 envia "COMMIT" sem olhar se existe transacao. O Postgres responde:
+
+    WARNING:  there is no transaction in progress
+
+e o log do Supabase enche de aviso a cada gravacao. (O ROLLBACK do
+Session.close() NAO era problema: o proprio pg8000 so envia rollback quando ha
+transacao em andamento.)
+
+A CORRECAO
+Em vez de abrir transacao de verdade (5x mais lento), o commit vira no-op
+enquanto o autocommit estiver ligado. Em database/connection.py:
+
+    def _anular_commit_spurio(dbapi_connection, connection_record):
+        if getattr(dbapi_connection, "autocommit", False):
+            dbapi_connection.commit = _nada
+
+    event.listen(engine, "connect", _anular_commit_spurio)
+
+O statement ja foi confirmado pelo servidor no autocommit, entao dispensar o
+COMMIT nao perde nada. A engine tambem recebe skip_autocommit_rollback=True
+para o ROLLBACK nao ser enviado na devolucao da conexao ao pool.
+
+O QUE MUDOU NA PRATICA
+Medido no Supabase (sa-east-1, mediana de 10 rodadas, banco com pool quente):
+
+    operacao                    antes      depois   sem autocommit
+    leitura (1 sessao)          13,5 ms    14,0 ms      77,4 ms
+    Agenda (2 leituras)         23,3 ms    24,3 ms     135,2 ms
+    gravacao (add + commit)     90,6 ms    47,3 ms      97,9 ms
+
+Ou seja: o aviso some (0 warnings contados direto do servidor) sem perder
+velocidade, e a gravacao ate fica mais rapida porque deixa de gastar uma
+ida-e-volta com um COMMIT que nao confirmava nada.
+
+COMO CONFERIR
+    - No painel do Supabase, em Logs, o aviso "there is no transaction in
+      progress" nao aparece mais.
+    - No codigo, o commit e contagem zero; o INSERT continua gravado porque o
+      autocommit ja o confirmou.
+    - Os testes de database/connection.py cobrem o comportamento: com autocommit
+      o commit e anulado; sem autocommit ele volta a valer.
+
+REGRA PARA O FUTURO
+Nada no app usa engine.begin() nem db.begin(), e nenhuma funcao grava mais de
+uma linha por transacao - por isso autocommit e seguro aqui. Se um dia uma
+tela precisar de transacao de verdade (gravar varias linhas e poder
+desfazer), o caminho e engine.begin() com o autocommit desligado. O patch
+acima e condicionado ao autocommit, entao nao atrapalha esse caso: com
+transacao explicita o commit volta a ser enviado.
+
+
 3. ONDE ESTA TUDO ISSO NO PROJETO
 ================================================================================
 
