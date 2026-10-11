@@ -947,6 +947,11 @@ def mostrar(parent):
     MINI_CEL_H = 24
     MINI_CABECALHO_H = 20
 
+    # A grade do mini-calendário tem 7 * 32 = 224px. O tk.Canvas precisa desse
+    # width explícito, senão herda o default de 378px do Tk e o painel inteiro
+    # esticava para ~400px (por isso sobrava espaço ao lado do calendário).
+    MINI_LARGURA = 7 * MINI_PITCH_W
+
     def _clique_mini(evento):
         """Clique no canvas do mini-calendário: escolhe o dia."""
         col = int(evento.x // MINI_PITCH_W)
@@ -1159,11 +1164,12 @@ def mostrar(parent):
     split.rowconfigure(0, weight=1)
 
     # ---- painel esquerdo (mini-calendário + próxima consulta) ----
+    # A largura é definida pelo conteúdo (grade de 224px do mini-calendário + paddings);
+    # fixar width/grid_propagate não adiantava: os filhos são pack, não grid.
     painel_esq = ctk.CTkFrame(
-        split, width=295, corner_radius=10, fg_color=COR_PAINEL, border_width=1, border_color=COR_BORDA_PAINEL
+        split, corner_radius=10, fg_color=COR_PAINEL, border_width=1, border_color=COR_BORDA_PAINEL
     )
     painel_esq.grid(row=0, column=0, sticky="ns", padx=(2, 10))
-    painel_esq.grid_propagate(False)
 
     ctk.CTkLabel(
         painel_esq, text="📅 Calendário", font=("Segoe UI", 13, "bold"), text_color="#e8eaed"
@@ -1193,6 +1199,7 @@ def mostrar(parent):
 
     mini_canvas = tk.Canvas(
         mini_container, bg=COR_PAINEL, highlightthickness=0, bd=0,
+        width=MINI_LARGURA,
         height=MINI_CABECALHO_H + 6 * MINI_PITCH_H,
     )
     mini_canvas.pack(fill="x", padx=4, pady=(0, 6))
@@ -1214,7 +1221,7 @@ def mostrar(parent):
         "vazio": ctk.CTkLabel(
             prox_container, text="Nenhuma consulta futura", font=("Segoe UI", 11), text_color="#9aa0a6"
         ),
-        "tempo": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 20, "bold"), text_color="#8ab4f8"),
+        "tempo": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 16, "bold"), text_color="#8ab4f8"),
         "nome": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 13, "bold"), text_color="#e8eaed"),
         "detalhe": ctk.CTkLabel(prox_container, text="", font=("Segoe UI", 10), text_color="#9aa0a6"),
     }
