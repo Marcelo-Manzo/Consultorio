@@ -1,6 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-
+from tkinter import messagebox
 import customtkinter as ctk
 from sqlalchemy.exc import InterfaceError, OperationalError
 
@@ -241,7 +241,7 @@ class App(ctk.CTk):
                 return
             except (OperationalError, InterfaceError):
                 if tentativa == 2:
-                    ctk.messagebox.showerror(
+                    messagebox.showerror(
                         "Banco de dados",
                         "Não consegui falar com o banco de dados.\nTente novamente em instantes.",
                     )
