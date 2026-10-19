@@ -59,7 +59,7 @@ def buscar_consulta_Atual(data_e_horario):
             .join(Paciente, Consulta.paciente_id == Paciente.id)
             .filter(
                 Consulta.data == data_e_horario,
-                Consulta.compareceu == 0,
+                Consulta.compareceu == 0 or Consulta.compareceu == 4,
                 Consulta.usuario_id == uid,
             )
             .first()
@@ -169,7 +169,7 @@ def listar_consultas_com_paciente_por_periodo(data_inicio, data_fim):
             .filter(
                 Consulta.data >= data_inicio,
                 Consulta.data < data_fim,
-                Consulta.compareceu.in_([0, 1]),
+                Consulta.compareceu.in_([0, 1, 4]),
                 _filtro_usuario(),
             )
             .order_by(Consulta.data.asc())
