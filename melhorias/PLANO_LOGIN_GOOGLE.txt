@@ -1,0 +1,283 @@
+================================================================================
+PLANO - LOGIN COM GOOGLE (OAuth 2.0 / PKCE) - Consultorio
+================================================================================
+
+OBJETIVO
+Permitir login na tela de acesso usando a conta Google do usuario, alem do
+login por e-mail + senha que ja existe.
+
+Decisoes ja tomadas:
+  - OAuth REAL com o Google (fluxo PKCE, abre o navegador do usuario)
+  - Se o e-mail do Google nao existir no banco -> CRIA o usuario automaticamente
+  - Ainda NAO temos Client ID -> Passo 1 ensina a criar no Google Cloud Console
+
+POR QUE NO DESKTOP E DIFERENTE DA WEB
+Um site pode receber o redirecionamento do Google direto na URL. Um app
+desktop nao tem isso. O padrao e:
+  1. App abre o NAVEGADOR na tela de consentimento do Google
+  2. Usuario autoriza -> Google redireciona para http://localhost:<porta>
+     com um "code" na query string
+  3. O App sobe um mini servidor local (loopback) que captura esse "code"
+  4. O App troca o "code" por um id_token (JWT) usando o client_secret
+  5. O App le o e-mail/nome do id_token e autentica (ou cria) o usuario
+
+Isso usa o tipo de Client ID "Desktop app", que dispensa HTTPS local e aceita
+http://localhost (loopback). Um Client ID "Web" NAO serve para desktop.
+
+--------------------------------------------------------------------------------
+FASE 1 - CRIAR O CLIENT ID NO GOOGLE CLOUD CONSOLE
+--------------------------------------------------------------------------------
+
+[ ] Passo 1.1 - Acessar o Console
+    - Abra https://console.cloud.google.com/ e logue com sua conta Google
+    - Se pedir, aceite os termos
+
+[ ] Passo 1.2 - Criar (ou escolher) um projeto
+    - No topo, clique no seletor de projeto -> "New Project"
+    - Nome sugerido: Consultorio
+    - Location: No organization (pode deixar)
+    - Clique "Create" e ESPERE aparecer no seletor
+    - Selecione o projeto recem-criado (importante: tudo abaixo e dentro dele)
+
+[ ] Passo 1.3 - Configurar a tela de consentimento (OAuth consent screen)
+    - Menu lateral -> "APIs & Services" -> "OAuth consent screen"
+    - User type: "External" -> Create
+    - App name: Consultorio
+    - User support email: seu e-mail
+    - Developer contact information: seu e-mail
+    - Clique "Save and Continue" nas etapas User attributes e Scopes
+      (nao precisa adicionar scopes manualmente: o codigo pede openid,
+       email e profile em tempo de execucao)
+
+    IMPORTANTE (modo Testing):
+    - Enquanto o app estiver "Testing", so contas cadastradas em
+      "Test users" conseguem autorizar.
+    - Em "OAuth consent screen" -> "Test users" -> "Add users":
+      adicione o SEU e-mail e o da sua sogra (cada um que for usar).
+    - Alternativa: clicar "Publish App" para ir a "Production" (sem lista de
+      test users). Para uso pessoal, Testing + test users e suficiente.
+
+[ ] Passo 1.4 - Criar o Client ID
+    - Menu lateral -> "APIs & Services" -> "Credentials"
+    - Clique "+ CREATE CREDENTIALS" -> "OAuth client ID"
+    - Application type: "Desktop app"   (NAO escolha "Web application")
+    - Name: Consultorio Desktop
+    - Clique "Create"
+    - Vai aparecer um popup com "Client ID" e "Client secret"
+      -> clique "DOWNLOAD JSON" e guarde esse arquivo em local seguro
+
+[ ] Passo 1.5 - Colocar as credenciais no .env
+    - Abra (ou crie) o arquivo .env na raiz do projeto
+    - Adicione as duas linhas abaixo (valores do passo 1.4):
+
+        GOOGLE_CLIENT_ID=xxxxxxxxxxxx.apps.googleusercontent.com
+        GOOGLE_CLIENT_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+    - O .env NAO vai para o git (confira o .gitignore). Nunca cole essas
+      credenciais em codigo.
+
+    OBS: o "client_secret" de um app Desktop nao e um segredo forte (ele viaja
+    com o binario), mas ainda assim nao deve ser commitado.
+
+--------------------------------------------------------------------------------
+FASE 2 - MUDANCA NO BANCO (schema)
+--------------------------------------------------------------------------------
+
+Motivo: hoje "Usuarios.senha_hash" e NOT NULL. Um usuario que so entra com
+Google nao tem senha. Precisamos tambem guardar o ID unico do Google para
+nao confundir contas que compartilham e-mail.
+
+[ ] Passo 2.1 - Alterar database/models.py (classe Usuario)
+    - senha_hash passa a ser nullable=True
+    - adicionar coluna google_sub (String, unique, nullable)
+
+    Resultado esperado:
+
+        class Usuario(Base):
+            __tablename__ = "Usuarios"
+
+            id = Column(Integer, primary_key=True)
+            nome = Column(String(100), nullable=False)
+            email = Column(String(150), unique=True, nullable=False)
+            senha_hash = Column(String(255), nullable=True)
+            google_sub = Column(String(64), unique=True, nullable=True)
+
+    - "sub" e o identificador estavel da conta Google (nao muda nunca).
+      Nao use o e-mail como chave: e-mail pode ser alterado/trocado.
+
+[ ] Passo 2.2 - Gerar a migration
+    - Com o venv ativo:
+        alembic revision --autogenerate -m "login google: senha_hash nullable + google_sub"
+    - Abra o arquivo gerado em migrations/versions/ e REVISE:
+      deve conter alter_column("Usuarios", "senha_hash", nullable=True) e
+      add_column("Usuarios", "google_sub", ...), alem do indice unico
+    - Aplique:
+        alembic upgrade head
+    - Confirme que banco == models:
+        alembic check
+
+--------------------------------------------------------------------------------
+FASE 3 - DEPENDENCIA E MODULO DE OAUTH
+--------------------------------------------------------------------------------
+
+[ ] Passo 3.1 - Instalar a biblioteca
+    - Usaremos a google-auth-oauthlib (traz google-auth e requests):
+        .venv\Scripts\pip install google-auth-oauthlib
+    - Congele no requirements.txt (adicionar as linhas):
+        google-auth-oauthlib==<versao instalada>
+        google-auth==<versao instalada>
+    - Dica: rode "pip freeze" e copie as versoes exatas para manter o padrao
+      de versoes fixas do projeto.
+
+[ ] Passo 3.2 - Criar database/google_auth.py (modulo novo)
+    Responsabilidade: TODO o fluxo OAuth. Nenhuma tela conhece detalhes.
+
+    Funcoes:
+      - google_configurado() -> bool
+            Retorna False se GOOGLE_CLIENT_ID/SECRET nao estiverem no .env,
+            para a tela poder esconder/mostrar o botao.
+
+      - autenticar_com_google() -> dict | None
+            Executa o fluxo completo (abre navegador, espera o code, troca
+            por token, valida o id_token) e devolve:
+                {"sub": "...", "email": "...", "nome": "..."}
+            Retorna None se o usuario cancelar/fechar o navegador.
+
+            Esqueleto (google-auth-oauthlib):
+
+                from google_auth_oauthlib.flow import InstalledAppFlow
+
+                flow = InstalledAppFlow.from_client_config(
+                    {
+                        "installed": {
+                            "client_id": CLIENT_ID,
+                            "client_secret": CLIENT_SECRET,
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                            "redirect_uris": ["http://localhost"],
+                        }
+                    },
+                    scopes=["openid", "email", "profile"],
+                )
+                creds = flow.run_local_server(port=0)
+                # creds.id_token -> JWT; o lib do google ja valida a assinatura
+                # e a expiracao. Leia o claim "sub"/"email"/"name".
+
+            Detalhes:
+            - run_local_server(port=0) sobe um servidor loopback em porta
+              aleatoria e captura o redirecionamento. Nao precisa registrar
+              porta fixa nem URI no Console (Desktop app aceita loopback).
+            - A biblioteca valida o id_token automaticamente. Ainda assim,
+              confira que o "aud" bate com o CLIENT_ID.
+
+      - obter_ou_criar_usuario(dados_google) -> Usuario
+            Regra combinada (cria automaticamente):
+              1. Procura por google_sub == dados["sub"]  -> se achar, retorna
+              2. Senao, procura por email == dados["email"]
+                 - se achar, VINCULA (grava google_sub nesse usuario) e retorna
+              3. Senao, create_user_google(nome, email, sub) e retorna
+
+[ ] Passo 3.3 - Adicionar funcoes em database/usuarios.py
+    - create_user_google(nome, email, google_sub):
+        cria Usuario SEM senha (senha_hash=None)
+    - get_user_by_google_sub(google_sub):
+        db.query(Usuario).filter(Usuario.google_sub == google_sub).first()
+    - vincular_google(user_id, google_sub):
+        grava o google_sub num usuario que ja existia (login por senha)
+    - Exportar as novas funcoes em database/__init__.py (imports + __all__),
+      seguindo o padrao do arquivo.
+
+--------------------------------------------------------------------------------
+FASE 4 - TELA DE LOGIN (views/login.py)
+--------------------------------------------------------------------------------
+
+[ ] Passo 4.1 - Botao "Entrar com Google"
+    - Em _mostrar_acesso(), logo ABAIXO do botao "Entrar" (ou dentro do
+      bloco do divisor "ou"), adicionar um CTkButton:
+        text="Entrar com Google"
+        command=tentar_login_google
+    - So exibir se google_configurado() for True.
+      (Se o .env estiver sem credenciais, o botao nem aparece.)
+
+[ ] Passo 4.2 - Funcao tentar_login_google()
+    Fluxo:
+      - desabilitar o botao e mostrar "Abrindo navegador..." no label
+      - rodar o fluxo do Google (pode demorar; o usuario esta no navegador)
+      - IMPORTANTE: run_local_server e bloqueante. Como o CustomTkinter roda
+        em thread unica, chame o fluxo numa thread separada e volte para a
+        thread da UI via .after(0, ...) para atualizar a tela. Nao atualize
+        widgets direto de dentro da thread.
+      - se retornar None -> reabilitar botao, label "Cancelado."
+      - se ok -> obter_ou_criar_usuario(...), depois:
+            salvar_sessao(usuario.id)  (ou limpar, conforme checkbox)
+            on_success(usuario)
+      - erros -> label vermelho, reabilitar botao
+
+    CUIDADO COM BLOQUEIO:
+      Sem thread, a janela congela enquanto o navegador esta aberto.
+      Padrao sugerido:
+        threading.Thread(target=_worker, daemon=True).start()
+      e dentro do _worker, ao terminar, usar
+        form.after(0, lambda: _aplicar_resultado(resultado))
+
+[ ] Passo 4.3 - Ajuste no botao "Criar Usuario"
+    - Nada muda no fluxo de senha. Login por senha continua funcionando.
+    - Usuario criado via Google pode depois definir senha (update_user_password
+      ja existe) se quiser entrar sem Google.
+
+--------------------------------------------------------------------------------
+FASE 5 - TESTES E VALIDACAO
+--------------------------------------------------------------------------------
+
+[ ] Passo 5.1 - Testes (rodam em SQLite, sem tocar Supabase)
+    Criar tests/test_google_auth.py cobrindo a REGRA, sem chamar o Google:
+      - create_user_google grava senha_hash=None e google_sub preenchido
+      - obter_ou_criar_usuario:
+          * acha por google_sub
+          * vincula quando so o e-mail bate (usuario com senha existente)
+          * cria quando nada bate
+      - google_configurado() False quando faltam env vars
+      - (mockar autenticar_com_google; nunca abrir navegador em teste)
+
+    ATENCAO: o teste das fixtures cria Usuario com senha_hash obrigatorio
+    (tests/conftest.py). Como agora senha_hash e nullable, o fake continua
+    valido; adicione um caso sem senha para o fluxo Google.
+
+[ ] Passo 5.2 - Rodar tudo
+        .venv\Scripts\pytest -q
+        .venv\Scripts\ruff check .
+
+[ ] Passo 5.3 - Teste manual
+    1. Adicionar seu e-mail em "Test users" no Google Cloud (se Testing)
+    2. Rodar: python app.py
+    3. Clicar "Entrar com Google" -> navegador abre -> autorizar
+    4. Confirmar que volta ao app logado e que aparece a agenda
+    5. Confirmar no banco que o usuario tem google_sub e senha_hash NULL
+    6. Sair, entrar de novo com Google -> deve reusar o mesmo usuario
+    7. Entrar com e-mail+senha de um usuario que ja existia e foi vinculado
+       -> deve continuar funcionando
+
+--------------------------------------------------------------------------------
+SEQUENCIA RECOMENDADA (resumo)
+--------------------------------------------------------------------------------
+1. Fase 1 (Google Cloud) -> pegar Client ID/Secret e por no .env
+2. Fase 2 (models.py + migration) + alembic upgrade head + alembic check
+3. Fase 3 (pip install + database/google_auth.py + usuarios.py)
+4. Fase 4 (botao e fluxo em views/login.py)
+5. Fase 5 (testes + ruff + teste manual)
+
+--------------------------------------------------------------------------------
+RISCOS / OBSERVACOES
+--------------------------------------------------------------------------------
+- App em modo Testing: so "Test users" entram. Cadastre cada pessoa que for
+  usar, ou publique o app (Production).
+- Nada de senha no Google: usuario so-Google nao loga pela tela de senha ate
+  definir uma.
+- O fluxo abre navegador externo; se a maquina nao tiver navegador padrao
+  configurado, falha. Tratar excecao e mostrar mensagem.
+- run_local_server precisa conseguir abrir uma porta local; firewall corporativo
+  muito restrito pode bloquear. Em maquina pessoal, sem problema.
+- Client secret do Desktop e aceitavel no .env, mas nunca commitar.
+- Nao guardamos o token do Google: usamos apenas para identificar o usuario no
+  momento do login. Se um dia precisar de Gmail/Calendar, ai sim guardariamos
+  refresh_token (fora do escopo agora).
